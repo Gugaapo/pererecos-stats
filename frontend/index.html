@@ -398,6 +398,11 @@
       background: var(--accent-lime);
     }
 
+    .bar.current {
+      background: var(--accent-lime);
+      opacity: 1;
+    }
+
     .bar-wrapper:hover::after {
       content: attr(data-tooltip);
       position: absolute;
@@ -2145,14 +2150,19 @@
       const maxCount = Math.max(...data.activity.map(a => a.count), 1);
 
       data.activity.forEach(a => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bar-wrapper';
+        wrapper.dataset.tooltip = a.hour + 'h: ' + a.count.toLocaleString('pt-BR') + ' msgs';
+
         const bar = document.createElement('div');
-        bar.className = 'activity-bar' + (a.hour === currentBrtHour ? ' current' : '');
+        bar.className = 'bar' + (a.hour === currentBrtHour ? ' current' : '');
         // Use square root scaling to make small values more visible
         const ratio = a.count / maxCount;
         const height = a.count > 0 ? Math.max(Math.sqrt(ratio) * 100, 8) : 2;
         bar.style.height = height + '%';
-        bar.title = a.hour + 'h: ' + a.count + ' msgs';
-        chatActivityChart.appendChild(bar);
+
+        wrapper.appendChild(bar);
+        chatActivityChart.appendChild(wrapper);
       });
 
       totalTodayEl.textContent = data.total_today.toLocaleString('pt-BR');
@@ -2183,14 +2193,19 @@
       const maxCount = Math.max(...data.activity.map(a => a.count), 1);
 
       data.activity.forEach(a => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bar-wrapper';
+        wrapper.dataset.tooltip = a.hour + 'h: ' + a.count.toLocaleString('pt-BR') + ' usuarios';
+
         const bar = document.createElement('div');
-        bar.className = 'activity-bar' + (a.hour === currentBrtHour ? ' current' : '');
+        bar.className = 'bar' + (a.hour === currentBrtHour ? ' current' : '');
         // Use square root scaling to make small values more visible
         const ratio = a.count / maxCount;
         const height = a.count > 0 ? Math.max(Math.sqrt(ratio) * 100, 8) : 2;
         bar.style.height = height + '%';
-        bar.title = a.hour + 'h: ' + a.count + ' usuarios';
-        uniqueChattersChart.appendChild(bar);
+
+        wrapper.appendChild(bar);
+        uniqueChattersChart.appendChild(wrapper);
       });
 
       uniqueTotalEl.textContent = data.total_unique.toLocaleString('pt-BR');
@@ -2246,14 +2261,19 @@
       const maxCount = Math.max(...data.activity.map(a => a.count), 1);
 
       data.activity.forEach(a => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bar-wrapper';
+        wrapper.dataset.tooltip = a.hour + 'h: ' + a.count.toLocaleString('pt-BR') + ' msgs';
+
         const bar = document.createElement('div');
-        bar.className = 'activity-bar';
+        bar.className = 'bar';
         // Use square root scaling to make small values more visible
         const ratio = a.count / maxCount;
         const height = a.count > 0 ? Math.max(Math.sqrt(ratio) * 100, 8) : 2;
         bar.style.height = height + '%';
-        bar.title = a.hour + 'h: ' + a.count.toLocaleString('pt-BR') + ' msgs';
-        overallActivityChart.appendChild(bar);
+
+        wrapper.appendChild(bar);
+        overallActivityChart.appendChild(wrapper);
       });
 
       overallTotalEl.textContent = data.total_messages.toLocaleString('pt-BR');
