@@ -28,6 +28,7 @@ class ActiveChatter(BaseModel):
     username: str
     display_name: str
     message_count: int
+    rank: int | None = None  # Overall leaderboard position
 
 
 class UserSearchResult(BaseModel):

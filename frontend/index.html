@@ -1061,6 +1061,18 @@
       color: var(--accent-green);
     }
 
+    .active-chatter-rank {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      min-width: 36px;
+      color: var(--text-muted);
+    }
+
+    .active-chatter-rank.gold { color: #ffd700; }
+    .active-chatter-rank.silver { color: #c0c0c0; }
+    .active-chatter-rank.bronze { color: #cd7f32; }
+
     @media (max-width: 900px) {
       .main-layout {
         grid-template-columns: 1fr;
@@ -2450,6 +2462,17 @@
         div.className = 'active-chatter';
         div.onclick = () => selectUser(chatter.username);
 
+        const rankSpan = document.createElement('span');
+        rankSpan.className = 'active-chatter-rank';
+        if (chatter.rank) {
+          rankSpan.textContent = '#' + chatter.rank;
+          if (chatter.rank === 1) rankSpan.classList.add('gold');
+          else if (chatter.rank === 2) rankSpan.classList.add('silver');
+          else if (chatter.rank === 3) rankSpan.classList.add('bronze');
+        } else {
+          rankSpan.textContent = '-';
+        }
+
         const nameSpan = document.createElement('span');
         nameSpan.className = 'active-chatter-name';
         nameSpan.textContent = chatter.display_name;
@@ -2458,6 +2481,7 @@
         countSpan.className = 'active-chatter-count';
         countSpan.textContent = chatter.message_count + ' msgs';
 
+        div.appendChild(rankSpan);
         div.appendChild(nameSpan);
         div.appendChild(countSpan);
         activeChattersList.appendChild(div);

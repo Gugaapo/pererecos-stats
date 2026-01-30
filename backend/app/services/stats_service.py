@@ -574,11 +574,23 @@ async def get_active_chatters(min_messages: int = 5, minutes: int = 5) -> list[A
 
     results = await db.messages.aggregate(pipeline).to_list(None)
 
+    # Get overall leaderboard ranks for active chatters
+    rank_pipeline = [
+        {"$group": {"_id": "$username", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": MAX_USERS_QUERY}
+    ]
+    all_users = await db.messages.aggregate(rank_pipeline).to_list(MAX_USERS_QUERY)
+
+    # Build rank lookup
+    rank_map = {user["_id"]: i + 1 for i, user in enumerate(all_users)}
+
     return [
         ActiveChatter(
             username=entry["_id"],
             display_name=entry["display_name"],
-            message_count=entry["count"]
+            message_count=entry["count"],
+            rank=rank_map.get(entry["_id"])
         )
         for entry in results
     ]
