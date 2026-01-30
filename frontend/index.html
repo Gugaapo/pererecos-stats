@@ -1753,23 +1753,37 @@
         rankingsGrid.appendChild(item);
       }
 
-      // Hours dominated
+      // Hours dominated - always show
+      const hoursItem = document.createElement('div');
+      hoursItem.className = 'ranking-item';
+      hoursItem.style.gridColumn = '1 / -1';
+
+      const hoursLabel = document.createElement('span');
+      hoursLabel.className = 'ranking-label';
+      hoursLabel.textContent = 'Top1 da(s) hora(s)';
+
+      const hoursValue = document.createElement('span');
+      hoursValue.className = 'ranking-value';
       if (rankings.hours_dominated && rankings.hours_dominated.length > 0) {
-        const item = document.createElement('div');
-        item.className = 'ranking-item';
-
-        const label = document.createElement('span');
-        label.className = 'ranking-label';
-        label.textContent = 'Domina';
-
-        const value = document.createElement('span');
-        value.className = 'ranking-value';
-        value.textContent = rankings.hours_dominated.map(h => h + 'h').join(', ');
-
-        item.appendChild(label);
-        item.appendChild(value);
-        rankingsGrid.appendChild(item);
+        hoursValue.textContent = rankings.hours_dominated.map(h => h + 'h').join(', ');
+      } else {
+        hoursValue.textContent = 'NENHUMA ';
+        const emoteUrl = sevenTVEmotes.get('WAJAJA');
+        if (emoteUrl) {
+          const emoteImg = document.createElement('img');
+          emoteImg.src = emoteUrl;
+          emoteImg.alt = 'WAJAJA';
+          emoteImg.className = 'chat-emote';
+          emoteImg.style.verticalAlign = 'middle';
+          hoursValue.appendChild(emoteImg);
+        } else {
+          hoursValue.textContent += 'WAJAJA';
+        }
       }
+
+      hoursItem.appendChild(hoursLabel);
+      hoursItem.appendChild(hoursValue);
+      rankingsGrid.appendChild(hoursItem);
 
       // If no rankings found
       if (rankingsGrid.children.length === 0) {
