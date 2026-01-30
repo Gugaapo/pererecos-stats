@@ -1,6 +1,9 @@
 from twitchio.ext import commands
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import bleach
+
+# Brasília timezone (UTC-3)
+BRT = timezone(timedelta(hours=-3))
 import httpx
 import logging
 from app.config import get_settings
@@ -71,6 +74,7 @@ class TwitchBot(commands.Bot):
             return
 
         now = datetime.now(timezone.utc)
+        now_brt = now.astimezone(BRT)
 
         # Sanitize user inputs
         sanitized_message = sanitize_message(message.content)
@@ -87,7 +91,7 @@ class TwitchBot(commands.Bot):
             "message": sanitized_message,
             "channel": message.channel.name,
             "timestamp": now,
-            "hour": now.hour
+            "hour": now_brt.hour  # Store hour in Brasília timezone (UTC-3)
         }
 
         try:
