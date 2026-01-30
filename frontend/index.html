@@ -1091,6 +1091,180 @@
     .active-chatter-rank.silver { color: #e8e8e8; }
     .active-chatter-rank.bronze { color: #cd7f32; }
 
+    .feedback-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.4rem 0.8rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-top: 0.75rem;
+      transition: all 0.2s ease;
+    }
+
+    .feedback-btn:hover {
+      border-color: var(--accent-green);
+      color: var(--accent-lime);
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--accent-lime);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .form-select:focus {
+      outline: none;
+      border-color: var(--accent-green);
+    }
+
+    .form-textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      min-height: 150px;
+      resize: vertical;
+    }
+
+    .form-textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--accent-green);
+    }
+
+    .form-submit {
+      width: 100%;
+      background: var(--accent-dark);
+      border: 2px solid var(--accent-green);
+      border-radius: 6px;
+      padding: 0.85rem 1.5rem;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent-lime);
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+
+    .form-submit:hover {
+      background: var(--accent-green);
+      color: var(--bg-deep);
+    }
+
+    .form-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .form-message {
+      text-align: center;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 4px;
+    }
+
+    .form-message.success {
+      background: rgba(46, 204, 113, 0.2);
+      color: var(--accent-lime);
+      border: 1px solid var(--accent-green);
+    }
+
+    .form-message.error {
+      background: rgba(255, 50, 50, 0.1);
+      color: #ff6b6b;
+      border: 1px solid rgba(255, 50, 50, 0.4);
+    }
+
+    .char-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: right;
+      margin-top: 0.25rem;
+    }
+
     @media (max-width: 900px) {
       .main-layout {
         grid-template-columns: 1fr;
@@ -1129,6 +1303,7 @@
         <img src="/static/chatting.avif" alt="" class="title-img">
       </div>
       <p class="tagline">Stats coletados do chat em <a href="https://twitch.tv/omeiaum" target="_blank">twitch.tv/omeiaum</a></p>
+      <button class="feedback-btn" id="feedback-btn">Reportar bugs / sugestoes</button>
     </header>
 
     <div class="main-layout">
@@ -1341,6 +1516,31 @@
     <footer style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.85rem;">
       by: <a href="https://www.twitch.tv/tossemideia" target="_blank" style="color: var(--accent-green);">tossemideia</a>
     </footer>
+  </div>
+
+  <div class="modal-overlay" id="feedback-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Reportar bug / sugestao</h3>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <form id="feedback-form">
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" id="feedback-type" required>
+            <option value="bug">Bug</option>
+            <option value="sugestao">Sugestao</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descricao</label>
+          <textarea class="form-textarea" id="feedback-message" placeholder="Descreva o bug encontrado ou sua sugestao..." required minlength="10" maxlength="2000"></textarea>
+          <div class="char-count"><span id="char-count">0</span>/2000</div>
+        </div>
+        <button type="submit" class="form-submit" id="feedback-submit">Enviar</button>
+        <div class="form-message" id="feedback-result" style="display: none;"></div>
+      </form>
+    </div>
   </div>
 
   <script>
@@ -2582,6 +2782,79 @@
     function hideError() {
       errorMessage.classList.remove('visible');
     }
+
+    // Feedback modal
+    const feedbackBtn = document.getElementById('feedback-btn');
+    const feedbackModal = document.getElementById('feedback-modal');
+    const modalClose = document.getElementById('modal-close');
+    const feedbackForm = document.getElementById('feedback-form');
+    const feedbackType = document.getElementById('feedback-type');
+    const feedbackMessage = document.getElementById('feedback-message');
+    const feedbackSubmit = document.getElementById('feedback-submit');
+    const feedbackResult = document.getElementById('feedback-result');
+    const charCount = document.getElementById('char-count');
+
+    feedbackBtn.addEventListener('click', () => {
+      feedbackModal.classList.add('visible');
+      feedbackResult.style.display = 'none';
+      feedbackForm.reset();
+      charCount.textContent = '0';
+    });
+
+    modalClose.addEventListener('click', () => {
+      feedbackModal.classList.remove('visible');
+    });
+
+    feedbackModal.addEventListener('click', (e) => {
+      if (e.target === feedbackModal) {
+        feedbackModal.classList.remove('visible');
+      }
+    });
+
+    feedbackMessage.addEventListener('input', () => {
+      charCount.textContent = feedbackMessage.value.length;
+    });
+
+    feedbackForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      feedbackSubmit.disabled = true;
+      feedbackSubmit.textContent = 'Enviando...';
+      feedbackResult.style.display = 'none';
+
+      try {
+        const response = await fetch(`${API_BASE}/feedback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            type: feedbackType.value,
+            message: feedbackMessage.value
+          })
+        });
+
+        if (response.ok) {
+          feedbackResult.className = 'form-message success';
+          feedbackResult.textContent = 'Enviado com sucesso! Obrigado pelo feedback.';
+          feedbackResult.style.display = 'block';
+          feedbackForm.reset();
+          charCount.textContent = '0';
+          setTimeout(() => {
+            feedbackModal.classList.remove('visible');
+          }, 2000);
+        } else {
+          const data = await response.json();
+          throw new Error(data.detail || 'Erro ao enviar');
+        }
+      } catch (error) {
+        feedbackResult.className = 'form-message error';
+        feedbackResult.textContent = error.message || 'Erro ao enviar. Tente novamente.';
+        feedbackResult.style.display = 'block';
+      } finally {
+        feedbackSubmit.disabled = false;
+        feedbackSubmit.textContent = 'Enviar';
+      }
+    });
 
     // Initial load
     chatGeralBtn.classList.add('active');

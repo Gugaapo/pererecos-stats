@@ -46,6 +46,10 @@ class DatabaseManager:
         return self.db.chat_messages
 
     @property
+    def feedback(self):
+        return self.db.feedback
+
+    @property
     def timeout_ms(self) -> int:
         return self._timeout_ms
 

@@ -7,8 +7,9 @@ from app.models.schemas import (
     RisingStarsResponse, HourLeadersResponse, WritersResponse,
     ActiveChattersResponse, UserComparisonResponse, UserSearchResult,
     ChatActivityResponse, OverallActivityResponse, TopEmotesResponse,
-    UniqueChattersResponse
+    UniqueChattersResponse, FeedbackRequest, FeedbackResponse
 )
+from datetime import datetime, timezone
 from app.services.stats_service import (
     get_user_stats, get_leaderboard, get_rising_stars, get_hour_leaders,
     get_top_writers, get_active_chatters, get_user_comparison, search_users,
@@ -195,3 +196,19 @@ async def compare_users(
     if not stats2:
         raise HTTPException(status_code=404, detail=f"User '{user2}' not found or no messages in period")
     return UserComparisonResponse(user1=stats1, user2=stats2)
+
+
+@router.post("/feedback", response_model=FeedbackResponse)
+@limiter.limit("5/minute")
+async def submit_feedback(request: Request, feedback: FeedbackRequest):
+    """Submit bug report or suggestion"""
+    doc = {
+        "type": feedback.type,
+        "message": feedback.message,
+        "timestamp": datetime.now(timezone.utc),
+        "status": "pending",  # pending, reviewed, resolved
+        "ip": get_remote_address(request)
+    }
+
+    result = await db.feedback.insert_one(doc)
+    return FeedbackResponse(success=True, id=str(result.inserted_id))
