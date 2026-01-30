@@ -291,6 +291,51 @@
       color: var(--accent-lime);
     }
 
+    .user-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-badge.online {
+      background: rgba(46, 204, 113, 0.2);
+      color: var(--accent-lime);
+      border: 1px solid var(--accent-green);
+    }
+
+    .status-badge.offline {
+      background: rgba(100, 100, 100, 0.2);
+      color: var(--text-muted);
+      border: 1px solid rgba(100, 100, 100, 0.4);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-badge.online .status-dot {
+      background: var(--accent-lime);
+      animation: pulse 2s infinite;
+    }
+
+    .status-badge.offline .status-dot {
+      background: var(--text-muted);
+    }
+
     .message-count {
       display: flex;
       align-items: baseline;
@@ -618,7 +663,35 @@
 
     .online-label {
       color: var(--text-muted);
-      font-size: 0.9rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--accent-dark);
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-green);
+    }
+
+    /* Firefox scrollbar */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent-dark) rgba(0, 0, 0, 0.3);
     }
 
     .chat-activity-chart {
@@ -1115,6 +1188,7 @@
         <section class="stats-section" id="stats-section">
           <div class="card">
             <div class="user-header">
+              <div class="user-status" id="user-status"></div>
               <h2 class="display-name" id="display-name">Username</h2>
               <div class="message-count">
                 <span class="count-number" id="total-messages">0</span>
@@ -1237,6 +1311,7 @@
     const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
     const generalView = document.getElementById('general-view');
     const statsSection = document.getElementById('stats-section');
+    const userStatusEl = document.getElementById('user-status');
     const displayNameEl = document.getElementById('display-name');
     const totalMessagesEl = document.getElementById('total-messages');
     const percentileText = document.getElementById('percentile-text');
@@ -1441,6 +1516,17 @@
     function renderStats(data, silent = false) {
       statsSection.classList.add('visible');
       displayNameEl.textContent = data.display_name;
+
+      // Check if user is online (in active chatters list)
+      const isOnline = allActiveChatters.some(c => c.username === data.username);
+      userStatusEl.textContent = '';
+      const statusBadge = document.createElement('span');
+      statusBadge.className = 'status-badge ' + (isOnline ? 'online' : 'offline');
+      const statusDot = document.createElement('span');
+      statusDot.className = 'status-dot';
+      statusBadge.appendChild(statusDot);
+      statusBadge.appendChild(document.createTextNode(isOnline ? ' Online' : ' Offline'));
+      userStatusEl.appendChild(statusBadge);
 
       if (!silent) {
         animateNumber(totalMessagesEl, data.total_messages);
