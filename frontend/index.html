@@ -1248,13 +1248,15 @@
             <div class="social-section">
               <div class="social-grid">
                 <div class="social-card" id="rival-card">
-                  <div class="social-card-title">Seu Rival</div>
+                  <div class="social-card-title">Amigão</div>
+                  <div class="section-note">Quem mais chatta nos mesmos horarios que voce</div>
                   <div class="rival-info" id="rival-info">
                     <span class="empty-state" style="padding: 0.5rem;">Nenhum rival</span>
                   </div>
                 </div>
                 <div class="social-card" id="replies-card">
-                  <div class="social-card-title">Responde mais</div>
+                  <div class="social-card-title">Respondeu</div>
+                  <div class="section-note">Quem voce mais respondeu no chat</div>
                   <div class="replies-list" id="replies-list">
                     <span class="empty-state" style="padding: 0.5rem;">Nenhum dado</span>
                   </div>
@@ -1293,7 +1295,7 @@
             <button class="tab-btn active" data-tab="top">Top 10</button>
             <button class="tab-btn" data-tab="rising">Rising</button>
             <button class="tab-btn" data-tab="hours">Horas</button>
-            <button class="tab-btn" data-tab="writers">Escritores</button>
+            <button class="tab-btn" data-tab="writers">Textão</button>
           </div>
           <div class="leaderboard-content">
             <div class="section-note" id="note-top">Quem mais mandou mensagens no periodo</div>
@@ -1699,7 +1701,7 @@
 
         const label = document.createElement('span');
         label.className = 'ranking-label';
-        label.textContent = 'Top Chatters';
+        label.textContent = 'Perereco Rank';
 
         const value = document.createElement('span');
         value.className = 'ranking-value';
@@ -1724,7 +1726,7 @@
 
         const label = document.createElement('span');
         label.className = 'ranking-label';
-        label.textContent = 'Rising Stars';
+        label.textContent = 'Girino';
 
         const value = document.createElement('span');
         value.className = 'ranking-value';
@@ -1742,7 +1744,7 @@
 
         const label = document.createElement('span');
         label.className = 'ranking-label';
-        label.textContent = 'Escritores';
+        label.textContent = 'Fazedor de Textão';
 
         const value = document.createElement('span');
         value.className = 'ranking-value';
@@ -1756,7 +1758,6 @@
       // Hours dominated - always show
       const hoursItem = document.createElement('div');
       hoursItem.className = 'ranking-item';
-      hoursItem.style.gridColumn = '1 / -1';
 
       const hoursLabel = document.createElement('span');
       hoursLabel.className = 'ranking-label';
