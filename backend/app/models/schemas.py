@@ -1,15 +1,58 @@
-from pydantic import BaseModel
-from datetime import datetime
-
-
-class HourlyActivity(BaseModel):
-    hour: int
-    count: int
+from pydantic import BaseModel, Field, field_serializer
+from datetime import datetime, timezone
+from typing import Literal
 
 
 class RecentMessage(BaseModel):
     message: str
     timestamp: datetime
+
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.isoformat()
+
+
+class UserStats(BaseModel):
+    username: str
+    display_name: str
+    period: str
+    total_messages: int
+    hourly_activity: list["HourlyActivity"]
+    recent_messages: list[RecentMessage] = []
+    first_message_date: datetime | None = None
+    last_message_date: datetime | None = None
+    percentile: float = 0.0  # 0-100
+    peak_hours: list[int] = []  # e.g., [16, 17, 18]
+    favorite_hour: "FavoriteHour | None" = None
+    rival: "RivalInfo | None" = None
+    top_replies: list["ReplyTarget"] = []
+    rankings: "UserRankings | None" = None
+    top_emotes: list["EmoteUsage"] = []
+
+    @field_serializer('first_message_date', 'last_message_date')
+    def serialize_dates(self, value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.isoformat()
+
+
+class FeedbackRequest(BaseModel):
+    type: Literal["bug", "sugestao"]
+    message: str = Field(..., min_length=10, max_length=2000)
+
+
+class FeedbackResponse(BaseModel):
+    success: bool
+    id: str
+
+
+class HourlyActivity(BaseModel):
+    hour: int
+    count: int
 
 
 class RivalInfo(BaseModel):
@@ -55,24 +98,6 @@ class EmoteUsage(BaseModel):
     emote_name: str
     emote_id: str
     count: int
-
-
-class UserStats(BaseModel):
-    username: str
-    display_name: str
-    period: str
-    total_messages: int
-    hourly_activity: list[HourlyActivity]
-    recent_messages: list[RecentMessage] = []
-    first_message_date: datetime | None = None
-    last_message_date: datetime | None = None
-    percentile: float = 0.0  # 0-100
-    peak_hours: list[int] = []  # e.g., [16, 17, 18]
-    favorite_hour: FavoriteHour | None = None
-    rival: RivalInfo | None = None
-    top_replies: list[ReplyTarget] = []
-    rankings: UserRankings | None = None
-    top_emotes: list[EmoteUsage] = []
 
 
 class RisingStarEntry(BaseModel):
