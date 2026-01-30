@@ -122,8 +122,8 @@ async def top_writers(request: Request, limit: int = Query(10, ge=1, le=50)):
 @limiter.limit("60/minute")
 async def active_chatters(request: Request):
     """Users who sent at least 1 message in the last 5 minutes"""
-    chatters = await get_active_chatters(min_messages=1, minutes=5)
-    return ActiveChattersResponse(count=len(chatters), chatters=chatters)
+    chatters, total_users = await get_active_chatters(min_messages=1, minutes=5)
+    return ActiveChattersResponse(count=len(chatters), chatters=chatters, total_users=total_users)
 
 
 @router.get("/stats/chat-activity", response_model=ChatActivityResponse)

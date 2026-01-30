@@ -556,7 +556,7 @@ async def get_top_writers(limit: int = 10) -> list[WriterEntry]:
     ]
 
 
-async def get_active_chatters(min_messages: int = 5, minutes: int = 5) -> list[ActiveChatter]:
+async def get_active_chatters(min_messages: int = 5, minutes: int = 5) -> tuple[list[ActiveChatter], int]:
     """Get users who sent more than min_messages in the last N minutes"""
     now = datetime.now(timezone.utc)
     since = now - timedelta(minutes=minutes)
@@ -581,11 +581,12 @@ async def get_active_chatters(min_messages: int = 5, minutes: int = 5) -> list[A
         {"$limit": MAX_USERS_QUERY}
     ]
     all_users = await db.messages.aggregate(rank_pipeline).to_list(MAX_USERS_QUERY)
+    total_users = len(all_users)
 
     # Build rank lookup
     rank_map = {user["_id"]: i + 1 for i, user in enumerate(all_users)}
 
-    return [
+    chatters = [
         ActiveChatter(
             username=entry["_id"],
             display_name=entry["display_name"],
@@ -594,6 +595,7 @@ async def get_active_chatters(min_messages: int = 5, minutes: int = 5) -> list[A
         )
         for entry in results
     ]
+    return chatters, total_users
 
 
 async def get_user_comparison(user1: str, user2: str, period: str = "all") -> tuple[UserStats | None, UserStats | None]:

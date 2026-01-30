@@ -1373,6 +1373,7 @@
     const tabBtns = document.querySelectorAll('.tab-btn');
 
     let allActiveChatters = [];
+    let totalLeaderboardUsers = 0;
     let seenOnlineUsers = new Map(); // username -> {display_name, last_seen}
     let sevenTVEmotes = new Map(); // emote name -> emote URL
 
@@ -2081,6 +2082,7 @@
 
         const data = await response.json();
         allActiveChatters = data.chatters;
+        totalLeaderboardUsers = data.total_users;
 
         // Update online count
         onlineCountEl.textContent = data.count;
@@ -2464,11 +2466,12 @@
 
         const rankSpan = document.createElement('span');
         rankSpan.className = 'active-chatter-rank';
-        if (chatter.rank) {
+        if (chatter.rank && totalLeaderboardUsers > 0) {
           rankSpan.textContent = '#' + chatter.rank;
-          if (chatter.rank === 1) rankSpan.classList.add('gold');
-          else if (chatter.rank === 2) rankSpan.classList.add('silver');
-          else if (chatter.rank === 3) rankSpan.classList.add('bronze');
+          const percentile = (chatter.rank / totalLeaderboardUsers) * 100;
+          if (percentile <= 3) rankSpan.classList.add('gold');
+          else if (percentile <= 7) rankSpan.classList.add('silver');
+          else if (percentile <= 15) rankSpan.classList.add('bronze');
         } else {
           rankSpan.textContent = '-';
         }

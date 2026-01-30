@@ -114,6 +114,7 @@ class WritersResponse(BaseModel):
 class ActiveChattersResponse(BaseModel):
     count: int
     chatters: list[ActiveChatter]
+    total_users: int  # Total users in leaderboard for percentage calculations
 
 
 class ChatActivityPoint(BaseModel):
