@@ -65,7 +65,13 @@ async def main():
     # Test 4: Indexes exist
     try:
         indexes = await db.messages.index_information()
-        expected = ['username_1_timestamp_-1', 'timestamp_-1', 'username_1_hour_1']
+        expected = [
+            'username_1_timestamp_-1',
+            'timestamp_-1',
+            'username_1_hour_1',
+            'user_id_1_timestamp_-1',
+            'user_id_1_hour_1'
+        ]
         for idx in expected:
             if idx in indexes:
                 test_pass(f"Index exists: {idx}")
@@ -84,6 +90,12 @@ async def main():
                     test_pass(f"Message has field: {field}")
                 else:
                     test_fail(f"Message missing field: {field}")
+
+            # Check for user_id (new field - may not exist in old messages)
+            if 'user_id' in sample:
+                test_pass(f"Message has user_id: {sample['user_id']}")
+            else:
+                print(f"{YELLOW}INFO{NC} Old message without user_id (expected for legacy data)")
 
             # Check timestamp is datetime
             if isinstance(sample.get('timestamp'), datetime):

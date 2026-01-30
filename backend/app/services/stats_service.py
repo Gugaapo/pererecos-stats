@@ -123,11 +123,43 @@ def get_date_filter(period: str) -> dict:
     return {"timestamp": {"$gte": start}}
 
 
+async def resolve_user_id(username: str) -> str | None:
+    """
+    Find the Twitch user_id for a username by looking at their most recent message.
+    Returns None if no user_id found (old data before user_id was tracked).
+    """
+    doc = await db.messages.find_one(
+        {"username": username.lower(), "user_id": {"$exists": True}},
+        sort=[("timestamp", -1)]
+    )
+    return doc.get("user_id") if doc else None
+
+
+def get_user_query(username: str, user_id: str | None) -> dict:
+    """
+    Build a query that matches messages by user_id (if available) OR username.
+    This ensures we get all messages even if the user changed their username.
+    """
+    if user_id:
+        # Match by user_id (includes old username) OR current username (includes old data without user_id)
+        return {"$or": [{"user_id": user_id}, {"username": username.lower(), "user_id": {"$exists": False}}]}
+    else:
+        # No user_id found, fall back to username only
+        return {"username": username.lower()}
+
+
 async def get_user_stats(username: str, period: str = "all") -> UserStats | None:
+    # Resolve user_id to track across username changes
+    user_id = await resolve_user_id(username)
+    user_query = get_user_query(username, user_id)
+
     date_filter = get_date_filter(period)
-    match_stage = {"username": username.lower()}
+    match_stage = user_query.copy()
     if date_filter:
-        match_stage.update(date_filter)
+        if "$or" in match_stage:
+            match_stage = {"$and": [user_query, date_filter]}
+        else:
+            match_stage.update(date_filter)
 
     pipeline = [
         {"$match": match_stage},
@@ -166,7 +198,7 @@ async def get_user_stats(username: str, period: str = "all") -> UserStats | None
     ]
 
     recent_docs = await db.messages.find(
-        {"username": username.lower()}
+        user_query
     ).sort("timestamp", -1).limit(10).to_list(10)
 
     recent_messages = [
@@ -174,13 +206,13 @@ async def get_user_stats(username: str, period: str = "all") -> UserStats | None
         for doc in recent_docs
     ]
 
-    # Calculate new fields
-    percentile = await get_user_percentile(username, period)
+    # Calculate new fields (pass user_id for consistent lookups)
+    percentile = await get_user_percentile(username, period, user_id)
     peak_hours = get_peak_hours(hourly_activity)
-    rival = await get_rival(username, hourly_activity, period)
-    top_replies = await get_top_replies(username, period, limit=5)
-    rankings = await get_user_rankings(username, period)
-    top_emotes = await get_user_top_emotes(username, limit=10)
+    rival = await get_rival(username, hourly_activity, period, user_id)
+    top_replies = await get_top_replies(username, period, limit=5, user_id=user_id)
+    rankings = await get_user_rankings(username, period, user_id)
+    top_emotes = await get_user_top_emotes(username, limit=10, user_id=user_id)
 
     # Calculate favorite hour
     favorite_hour = None
@@ -255,12 +287,13 @@ async def get_leaderboard(period: str = "all", limit: int = 10) -> LeaderboardRe
     )
 
 
-async def get_user_percentile(username: str, period: str) -> float:
+async def get_user_percentile(username: str, period: str, user_id: str | None = None) -> float:
     """Calculate what % of users this user has more messages than"""
     date_filter = get_date_filter(period)
     match_stage = date_filter if date_filter else {}
 
     # Get all users' message counts (limited for performance)
+    # Group by user_id when available, fall back to username
     pipeline = [
         {"$match": match_stage} if match_stage else {"$match": {}},
         {"$group": {"_id": "$username", "count": {"$sum": 1}}},
@@ -272,12 +305,18 @@ async def get_user_percentile(username: str, period: str) -> float:
     if not all_users:
         return 0.0
 
-    # Find this user's count
-    user_count = 0
-    for user in all_users:
-        if user["_id"] == username.lower():
-            user_count = user["count"]
-            break
+    # Find this user's count (use user_query if user_id available)
+    user_query = get_user_query(username, user_id)
+    if date_filter:
+        if "$or" in user_query:
+            user_match = {"$and": [user_query, date_filter]}
+        else:
+            user_match = {**user_query, **date_filter}
+    else:
+        user_match = user_query
+
+    user_count_result = await db.messages.count_documents(user_match)
+    user_count = user_count_result if user_count_result else 0
 
     if user_count == 0:
         return 0.0
@@ -313,7 +352,7 @@ def get_peak_hours(hourly_activity: list[HourlyActivity]) -> list[int]:
     return [(best_start + i) % 24 for i in range(3)]
 
 
-async def get_rival(username: str, hourly_pattern: list[HourlyActivity], period: str) -> RivalInfo | None:
+async def get_rival(username: str, hourly_pattern: list[HourlyActivity], period: str, user_id: str | None = None) -> RivalInfo | None:
     """Find user with most similar hourly activity pattern using cosine similarity"""
     date_filter = get_date_filter(period)
     match_stage = date_filter if date_filter else {}
@@ -378,14 +417,19 @@ async def get_rival(username: str, hourly_pattern: list[HourlyActivity], period:
     return best_rival
 
 
-async def get_top_replies(username: str, period: str, limit: int = 5) -> list[ReplyTarget]:
+async def get_top_replies(username: str, period: str, limit: int = 5, user_id: str | None = None) -> list[ReplyTarget]:
     """Find users this person 'replies' to most (their message within 10s of the other's)"""
     date_filter = get_date_filter(period)
 
     # Get user's messages with timestamps
-    user_match = {"username": username.lower()}
+    user_query = get_user_query(username, user_id)
     if date_filter:
-        user_match.update(date_filter)
+        if "$or" in user_query:
+            user_match = {"$and": [user_query, date_filter]}
+        else:
+            user_match = {**user_query, **date_filter}
+    else:
+        user_match = user_query
 
     # Limit to recent messages for performance
     user_messages = await db.messages.find(user_match).sort("timestamp", -1).limit(MAX_MESSAGES_QUERY).to_list(MAX_MESSAGES_QUERY)
@@ -636,7 +680,7 @@ async def search_users(query: str, limit: int = 10) -> list[UserSearchResult]:
     ]
 
 
-async def get_user_rankings(username: str, period: str) -> UserRankings:
+async def get_user_rankings(username: str, period: str, user_id: str | None = None) -> UserRankings:
     """Get user's position in various leaderboards"""
     date_filter = get_date_filter(period)
     match_stage = date_filter if date_filter else {}
@@ -780,15 +824,19 @@ async def get_overall_hourly_activity() -> tuple[list[ChatActivityPoint], int, i
     return activity, total_messages, peak_hour, peak_count
 
 
-async def get_user_top_emotes(username: str, limit: int = 5) -> list[EmoteUsage]:
+async def get_user_top_emotes(username: str, limit: int = 5, user_id: str | None = None) -> list[EmoteUsage]:
     """Get top emotes used by a specific user in the last 30 days"""
     now = datetime.now(timezone.utc)
     thirty_days_ago = now - timedelta(days=30)
 
-    messages = await db.messages.find({
-        "username": username.lower(),
-        "timestamp": {"$gte": thirty_days_ago}
-    }).limit(MAX_MESSAGES_QUERY).to_list(MAX_MESSAGES_QUERY)
+    user_query = get_user_query(username, user_id)
+    date_filter = {"timestamp": {"$gte": thirty_days_ago}}
+    if "$or" in user_query:
+        match_query = {"$and": [user_query, date_filter]}
+    else:
+        match_query = {**user_query, **date_filter}
+
+    messages = await db.messages.find(match_query).limit(MAX_MESSAGES_QUERY).to_list(MAX_MESSAGES_QUERY)
 
     message_texts = [msg["message"] for msg in messages]
     return await count_emotes_in_messages(message_texts, limit)

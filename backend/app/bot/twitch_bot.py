@@ -86,6 +86,7 @@ class TwitchBot(commands.Bot):
         )[:25]  # Twitch display names max 25 chars
 
         doc = {
+            "user_id": str(message.author.id),  # Twitch user ID (permanent)
             "username": message.author.name.lower(),
             "display_name": sanitized_display_name,
             "message": sanitized_message,

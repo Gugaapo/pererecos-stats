@@ -34,6 +34,9 @@ class DatabaseManager:
         await messages.create_index([("username", 1), ("timestamp", -1)])
         await messages.create_index([("timestamp", -1)])
         await messages.create_index([("username", 1), ("hour", 1)])
+        # Indexes for user_id (Twitch ID) - preserves stats across username changes
+        await messages.create_index([("user_id", 1), ("timestamp", -1)])
+        await messages.create_index([("user_id", 1), ("hour", 1)])
         logger.info("Database indexes created")
 
     async def disconnect(self):
