@@ -795,3 +795,40 @@ async def get_chat_top_emotes(limit: int = 5) -> tuple[list[EmoteUsage], int]:
 
     total = sum(e.count for e in emotes)
     return emotes, total
+
+
+async def get_unique_chatters_by_hour() -> tuple[list[ChatActivityPoint], int, int, int]:
+    """Get unique chatters per hour for the last 24 hours"""
+    now = datetime.now(timezone.utc)
+    last_24h = now - timedelta(hours=24)
+
+    pipeline = [
+        {"$match": {"timestamp": {"$gte": last_24h}}},
+        {"$group": {
+            "_id": {"hour": "$hour", "username": "$username"}
+        }},
+        {"$group": {
+            "_id": "$_id.hour",
+            "count": {"$sum": 1}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+
+    results = await db.messages.aggregate(pipeline).to_list(24)
+
+    hourly_map = {r["_id"]: r["count"] for r in results}
+    activity = [
+        ChatActivityPoint(hour=h, count=hourly_map.get(h, 0))
+        for h in range(24)
+    ]
+
+    total_unique = sum(a.count for a in activity)
+
+    peak_hour = 0
+    peak_count = 0
+    for a in activity:
+        if a.count > peak_count:
+            peak_count = a.count
+            peak_hour = a.hour
+
+    return activity, total_unique, peak_hour, peak_count

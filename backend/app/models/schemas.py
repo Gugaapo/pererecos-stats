@@ -134,6 +134,13 @@ class OverallActivityResponse(BaseModel):
     peak_count: int
 
 
+class UniqueChattersResponse(BaseModel):
+    activity: list[ChatActivityPoint]
+    total_unique: int
+    peak_hour: int
+    peak_count: int
+
+
 class TopEmotesResponse(BaseModel):
     emotes: list[EmoteUsage]
     total_emote_uses: int

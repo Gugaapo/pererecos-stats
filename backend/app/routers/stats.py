@@ -6,12 +6,14 @@ from app.models.schemas import (
     UserStats, LeaderboardResponse, HealthResponse,
     RisingStarsResponse, HourLeadersResponse, WritersResponse,
     ActiveChattersResponse, UserComparisonResponse, UserSearchResult,
-    ChatActivityResponse, OverallActivityResponse, TopEmotesResponse
+    ChatActivityResponse, OverallActivityResponse, TopEmotesResponse,
+    UniqueChattersResponse
 )
 from app.services.stats_service import (
     get_user_stats, get_leaderboard, get_rising_stars, get_hour_leaders,
     get_top_writers, get_active_chatters, get_user_comparison, search_users,
-    get_chat_activity_today, get_overall_hourly_activity, get_chat_top_emotes
+    get_chat_activity_today, get_overall_hourly_activity, get_chat_top_emotes,
+    get_unique_chatters_by_hour
 )
 from app.database import db
 from app.config import get_settings
@@ -145,6 +147,19 @@ async def overall_activity(request: Request):
     return OverallActivityResponse(
         activity=activity,
         total_messages=total,
+        peak_hour=peak_hour,
+        peak_count=peak_count
+    )
+
+
+@router.get("/stats/unique-chatters", response_model=UniqueChattersResponse)
+@limiter.limit("60/minute")
+async def unique_chatters(request: Request):
+    """Unique chatters per hour for the last 24 hours"""
+    activity, total, peak_hour, peak_count = await get_unique_chatters_by_hour()
+    return UniqueChattersResponse(
+        activity=activity,
+        total_unique=total,
         peak_hour=peak_hour,
         peak_count=peak_count
     )

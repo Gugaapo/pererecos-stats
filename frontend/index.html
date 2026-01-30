@@ -1141,6 +1141,22 @@
             <div class="active-chatters-list" id="active-chatters-list">
               <div class="empty-state">Carregando...</div>
             </div>
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+              <div class="section-label">Pererecos por Hora (24h) <span style="font-weight: 400; opacity: 0.7;">- Horário de Brasília</span></div>
+              <div class="section-note">Quantos usuarios diferentes chattaram em cada hora</div>
+              <div class="chat-activity-chart" id="unique-chatters-chart"></div>
+              <div class="chart-labels">
+                <span class="chart-label">0h</span>
+                <span class="chart-label">6h</span>
+                <span class="chart-label">12h</span>
+                <span class="chart-label">18h</span>
+                <span class="chart-label">23h</span>
+              </div>
+              <div class="activity-stats">
+                <span>Total: <span id="unique-total">0</span> usuarios</span>
+                <span>Pico: <span id="unique-peak">-</span></span>
+              </div>
+            </div>
           </div>
 
           <div class="card" style="margin-top: 1rem;">
@@ -1335,6 +1351,9 @@
     const overallActivityChart = document.getElementById('overall-activity-chart');
     const overallTotalEl = document.getElementById('overall-total');
     const overallPeakEl = document.getElementById('overall-peak');
+    const uniqueChattersChart = document.getElementById('unique-chatters-chart');
+    const uniqueTotalEl = document.getElementById('unique-total');
+    const uniquePeakEl = document.getElementById('unique-peak');
     const chatTopEmotes = document.getElementById('chat-top-emotes');
     const userTopEmotes = document.getElementById('user-top-emotes');
     const errorMessage = document.getElementById('error-message');
@@ -1461,6 +1480,7 @@
         chatActivityCounter++;
         if (chatActivityCounter >= 6) {
           fetchChatActivity();
+          fetchUniqueChatters();
           chatActivityCounter = 0;
         }
       }, 5000);
@@ -2110,6 +2130,44 @@
       peakInfoEl.textContent = data.peak_hour + 'h (' + data.peak_count + ' msgs)';
     }
 
+    async function fetchUniqueChatters() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/unique-chatters`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        renderUniqueChatters(data);
+      } catch (error) {
+        console.error('Error loading unique chatters:', error);
+      }
+    }
+
+    function renderUniqueChatters(data) {
+      uniqueChattersChart.textContent = '';
+
+      // Get current hour in Brasília timezone (UTC-3)
+      const now = new Date();
+      const utcHour = now.getUTCHours();
+      const currentBrtHour = (utcHour - 3 + 24) % 24;
+
+      // Hours are already in Brasília timezone (UTC-3)
+      const maxCount = Math.max(...data.activity.map(a => a.count), 1);
+
+      data.activity.forEach(a => {
+        const bar = document.createElement('div');
+        bar.className = 'activity-bar' + (a.hour === currentBrtHour ? ' current' : '');
+        // Use square root scaling to make small values more visible
+        const ratio = a.count / maxCount;
+        const height = a.count > 0 ? Math.max(Math.sqrt(ratio) * 100, 8) : 2;
+        bar.style.height = height + '%';
+        bar.title = a.hour + 'h: ' + a.count + ' usuarios';
+        uniqueChattersChart.appendChild(bar);
+      });
+
+      uniqueTotalEl.textContent = data.total_unique.toLocaleString('pt-BR');
+      uniquePeakEl.textContent = data.peak_hour + 'h (' + data.peak_count + ' usuarios)';
+    }
+
     async function fetchOverallActivity() {
       try {
         const response = await fetch(`${API_BASE}/stats/overall-activity`);
@@ -2445,6 +2503,7 @@
     fetchLeaderboard();
     fetchActiveChatters();
     fetchChatActivity();
+    fetchUniqueChatters();
     fetchOverallActivity();
     fetchChatTopEmotes();
     startAutoRefresh();
