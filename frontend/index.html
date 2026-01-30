@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pererecos Stats - Chat do omeiaum</title>
+  <link rel="icon" type="image/avif" href="/static/sapo.avif">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #0a1a0f;
+      --bg-card: rgba(15, 35, 20, 0.9);
+      --accent-green: #2ecc71;
+      --accent-lime: #7fff00;
+      --accent-dark: #1a4d2e;
+      --text-primary: #e0ffe0;
+      --text-muted: #70a080;
+      --border-color: rgba(46, 204, 113, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .title-img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+
+    .logo {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--accent-green);
+      margin-bottom: 0.5rem;
+    }
+
+    .tagline {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .tagline a {
+      color: var(--accent-lime);
+      text-decoration: none;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .search-input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      padding: 0.85rem 1.25rem;
+      font-family: inherit;
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent-green);
+    }
+
+    .search-btn {
+      background: var(--accent-dark);
+      border: 2px solid var(--accent-green);
+      border-radius: 6px;
+      padding: 0.85rem 1.75rem;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent-lime);
+      cursor: pointer;
+    }
+
+    .search-btn:hover {
+      background: var(--accent-green);
+      color: var(--bg-deep);
+    }
+
+    .chat-geral-btn {
+      background: transparent;
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      padding: 0.85rem 1rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .chat-geral-btn:hover {
+      border-color: var(--accent-green);
+      color: var(--text-primary);
+    }
+
+    .chat-geral-btn.active {
+      background: var(--accent-dark);
+      border-color: var(--accent-green);
+      color: var(--accent-lime);
+    }
+
+    .search-wrapper {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-wrapper .search-input {
+      width: 100%;
+    }
+
+    .autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border: 2px solid var(--accent-green);
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+
+    .autocomplete-dropdown.visible {
+      display: block;
+    }
+
+    .autocomplete-section {
+      padding: 0.5rem 0;
+    }
+
+    .autocomplete-section:not(:last-child) {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .autocomplete-header {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0.25rem 1rem;
+    }
+
+    .autocomplete-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+    }
+
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+      background: rgba(46, 204, 113, 0.15);
+    }
+
+    .autocomplete-name {
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .autocomplete-badge {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+    }
+
+    .autocomplete-badge.online {
+      background: rgba(46, 204, 113, 0.3);
+      color: var(--accent-lime);
+    }
+
+    .autocomplete-badge.msgs {
+      background: rgba(100, 100, 100, 0.3);
+      color: var(--text-muted);
+    }
+
+    .filters {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--accent-green);
+      color: var(--text-primary);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-dark);
+      border-color: var(--accent-green);
+      color: var(--accent-lime);
+    }
+
+    .stats-section {
+      display: none;
+    }
+
+    .stats-section.visible {
+      display: block;
+    }
+
+    .user-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .display-name {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--accent-lime);
+    }
+
+    .message-count {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .count-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent-green);
+      line-height: 1;
+    }
+
+    .count-label {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .chart-section {
+      margin-top: 1.5rem;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .chart-container {
+      height: 160px;
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      padding: 0 0.25rem;
+    }
+
+    .bar-wrapper {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      position: relative;
+    }
+
+    .bar {
+      width: 100%;
+      min-height: 3px;
+      background: var(--accent-green);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .bar:hover {
+      background: var(--accent-lime);
+    }
+
+    .bar-wrapper:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: -28px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-color);
+      color: var(--accent-lime);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      padding: 3px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    .chart-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+      padding: 0 0.25rem;
+    }
+
+    .chart-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .messages-section {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .messages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .message-item {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      border-left: 3px solid var(--accent-green);
+    }
+
+    .message-text {
+      color: var(--text-primary);
+      word-break: break-word;
+      line-height: 1.6;
+    }
+
+    .chat-emote {
+      height: 1.5em;
+      vertical-align: middle;
+      margin: 0 0.1em;
+    }
+
+    .top-emotes-section {
+      margin-top: 1rem;
+    }
+
+    .top-emotes-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .emote-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(46, 204, 113, 0.1);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.6rem 0.4rem;
+    }
+
+    .emote-item img {
+      height: 36px;
+      width: 36px;
+      object-fit: contain;
+    }
+
+    .emote-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-lime);
+      font-weight: 500;
+    }
+
+    .emote-rank {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .emote-name {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .message-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+    }
+
+    .right-column {
+      position: sticky;
+      top: 1rem;
+    }
+
+    .leaderboard-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--accent-lime);
+    }
+
+    .refresh-indicator {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .refresh-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .leaderboard-entry {
+      display: flex;
+      align-items: center;
+      padding: 0.7rem 0.9rem;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .leaderboard-entry:hover {
+      background: rgba(46, 204, 113, 0.1);
+      border-color: var(--border-color);
+    }
+
+    .leaderboard-entry.selected {
+      background: rgba(46, 204, 113, 0.2);
+      border-color: var(--accent-green);
+    }
+
+    .rank {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      width: 36px;
+      color: var(--text-muted);
+    }
+
+    .leaderboard-entry:nth-child(1) .rank { color: #ffd700; }
+    .leaderboard-entry:nth-child(2) .rank { color: #c0c0c0; }
+    .leaderboard-entry:nth-child(3) .rank { color: #cd7f32; }
+
+    .entry-name {
+      flex: 1;
+      font-size: 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .entry-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--accent-lime);
+    }
+
+    .error-message {
+      background: rgba(255, 50, 50, 0.1);
+      border: 1px solid rgba(255, 50, 50, 0.4);
+      border-radius: 4px;
+      padding: 0.85rem 1.25rem;
+      color: #ff6b6b;
+      margin-top: 1rem;
+      text-align: center;
+      display: none;
+    }
+
+    .error-message.visible {
+      display: block;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .general-view {
+      display: block;
+    }
+
+    .general-view.hidden {
+      display: none;
+    }
+
+    .online-count {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-lime);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .online-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-lime);
+    }
+
+    .online-label {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .chat-activity-chart {
+      height: 100px;
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      margin: 1rem 0;
+    }
+
+    .activity-bar {
+      flex: 1;
+      background: var(--accent-green);
+      border-radius: 2px 2px 0 0;
+      min-height: 2px;
+      opacity: 0.6;
+    }
+
+    .activity-bar.current {
+      background: var(--accent-lime);
+      opacity: 1;
+    }
+
+    .activity-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .activity-stats span {
+      color: var(--accent-green);
+    }
+
+    .rankings-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .rankings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    .ranking-item {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      padding: 0.6rem 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ranking-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .ranking-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--accent-lime);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .rank-change {
+      font-size: 0.7rem;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+
+    .rank-change.up {
+      background: rgba(46, 204, 113, 0.2);
+      color: var(--accent-lime);
+    }
+
+    .rank-change.down {
+      background: rgba(255, 100, 100, 0.2);
+      color: #ff6b6b;
+    }
+
+    .favorite-hour-text {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .favorite-hour-text span {
+      color: var(--accent-lime);
+      font-weight: 600;
+    }
+
+    .percentile-text {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .percentile-text span {
+      color: var(--accent-lime);
+      font-weight: 600;
+    }
+
+    .peak-hours-text {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+    }
+
+    .peak-hours-text span {
+      color: var(--accent-green);
+      font-weight: 500;
+    }
+
+    .social-section {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .social-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .social-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .social-card-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.75rem;
+    }
+
+    .rival-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .rival-name {
+      color: var(--accent-lime);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    .rival-name:hover {
+      text-decoration: underline;
+    }
+
+    .rival-score {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .replies-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .reply-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .reply-name {
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .reply-name:hover {
+      color: var(--accent-lime);
+    }
+
+    .reply-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--accent-green);
+    }
+
+    .leaderboard-tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.4rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      flex: 1;
+      text-align: center;
+    }
+
+    .tab-btn:hover {
+      border-color: var(--accent-green);
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-dark);
+      border-color: var(--accent-green);
+      color: var(--accent-lime);
+    }
+
+    .hour-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.4rem;
+    }
+
+    .hour-entry {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      padding: 0.5rem 0.4rem;
+      text-align: center;
+      cursor: pointer;
+      border: 1px solid transparent;
+      min-height: 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .hour-entry:hover {
+      border-color: var(--border-color);
+      background: rgba(46, 204, 113, 0.1);
+    }
+
+    .hour-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .hour-leader {
+      font-size: 0.7rem;
+      color: var(--accent-lime);
+      word-break: break-word;
+      line-height: 1.2;
+      margin-top: 0.2rem;
+    }
+
+    .writer-entry {
+      display: flex;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .writer-entry:hover {
+      background: rgba(46, 204, 113, 0.1);
+      border-color: var(--border-color);
+    }
+
+    .writer-avg {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--accent-green);
+    }
+
+    .growth-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      background: rgba(46, 204, 113, 0.2);
+      color: var(--accent-lime);
+    }
+
+    .growth-badge.negative {
+      background: rgba(255, 100, 100, 0.2);
+      color: #ff6b6b;
+    }
+
+    .active-chatters-section {
+      margin-top: 1rem;
+    }
+
+    .section-note {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .active-search {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+    }
+
+    .active-search::placeholder {
+      color: var(--text-muted);
+    }
+
+    .active-search:focus {
+      outline: none;
+      border-color: var(--accent-green);
+    }
+
+    .active-chatters-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .active-chatter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .active-chatter:hover {
+      background: rgba(46, 204, 113, 0.1);
+      border-color: var(--border-color);
+    }
+
+    .active-chatter-name {
+      font-size: 0.85rem;
+      color: var(--text-primary);
+    }
+
+    .active-chatter-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--accent-green);
+    }
+
+    @media (max-width: 900px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .right-column {
+        position: static;
+        order: -1;
+      }
+
+      .logo {
+        font-size: 2rem;
+      }
+
+      .title-img {
+        width: 50px;
+        height: 50px;
+      }
+
+      .count-number {
+        font-size: 2.5rem;
+      }
+
+      .chart-container {
+        height: 120px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-row">
+        <img src="/static/sapo.avif" alt="" class="title-img">
+        <h1 class="logo">Quem é o mais Perereco?</h1>
+        <img src="/static/chatting.avif" alt="" class="title-img">
+      </div>
+      <p class="tagline">Stats coletados do chat em <a href="https://twitch.tv/omeiaum" target="_blank">twitch.tv/omeiaum</a></p>
+    </header>
+
+    <div class="main-layout">
+      <div class="left-column">
+        <div class="card">
+          <div class="search-box">
+            <button class="chat-geral-btn" id="chat-geral-btn" title="Ver atividade geral do chat">Chat</button>
+            <div class="search-wrapper">
+              <input
+                type="text"
+                class="search-input"
+                id="username-input"
+                placeholder="Digite seu username do Twitch"
+                autocomplete="off"
+              >
+              <div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>
+            </div>
+            <button class="search-btn" id="search-btn">Buscar</button>
+          </div>
+
+          <div class="filters">
+            <button class="filter-btn" data-period="day">1 dia</button>
+            <button class="filter-btn" data-period="week">7 dias</button>
+            <button class="filter-btn" data-period="month">30 dias</button>
+            <button class="filter-btn active" data-period="all">29/01/2026 até hoje</button>
+          </div>
+
+          <div class="error-message" id="error-message"></div>
+        </div>
+
+        <section class="general-view" id="general-view">
+          <div class="card">
+            <div class="online-count">
+              <span class="online-dot"></span>
+              <span class="online-number" id="online-count">0</span>
+              <span class="online-label">pererecos no chat</span>
+            </div>
+            <div class="section-note">Enviaram mensagens nos ultimos 5 minutos</div>
+            <input type="text" class="active-search" id="active-search" placeholder="Buscar perereco..." autocomplete="off">
+            <div class="active-chatters-list" id="active-chatters-list">
+              <div class="empty-state">Carregando...</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 1rem;">
+            <div class="section-label">Atividade do Chat (24h)</div>
+            <div class="chat-activity-chart" id="chat-activity-chart"></div>
+            <div class="chart-labels">
+              <span class="chart-label">0h</span>
+              <span class="chart-label">6h</span>
+              <span class="chart-label">12h</span>
+              <span class="chart-label">18h</span>
+              <span class="chart-label">23h</span>
+            </div>
+            <div class="activity-stats" id="activity-stats">
+              <span>Total (24h): <span id="total-today">0</span></span>
+              <span>Pico: <span id="peak-info">-</span></span>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 1rem;">
+            <div class="section-label">Atividade Media por Hora</div>
+            <div class="section-note">Baseado em todas as mensagens coletadas</div>
+            <div class="chat-activity-chart" id="overall-activity-chart"></div>
+            <div class="chart-labels">
+              <span class="chart-label">0h</span>
+              <span class="chart-label">6h</span>
+              <span class="chart-label">12h</span>
+              <span class="chart-label">18h</span>
+              <span class="chart-label">23h</span>
+            </div>
+            <div class="activity-stats">
+              <span>Total: <span id="overall-total">0</span></span>
+              <span>Pico: <span id="overall-peak">-</span></span>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 1rem;">
+            <div class="section-label">Top Emotes do Chat</div>
+            <div class="section-note">Emotes mais usados nos ultimos 30 dias</div>
+            <div class="top-emotes-grid" id="chat-top-emotes">
+              <div class="empty-state">Carregando...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="stats-section" id="stats-section">
+          <div class="card">
+            <div class="user-header">
+              <h2 class="display-name" id="display-name">Username</h2>
+              <div class="message-count">
+                <span class="count-number" id="total-messages">0</span>
+                <span class="count-label">mensagens</span>
+              </div>
+              <div class="percentile-text" id="percentile-text"></div>
+            </div>
+
+            <div class="chart-section">
+              <div class="section-label">Atividade por Hora</div>
+              <div class="chart-container" id="hourly-chart"></div>
+              <div class="chart-labels">
+                <span class="chart-label">0h</span>
+                <span class="chart-label">6h</span>
+                <span class="chart-label">12h</span>
+                <span class="chart-label">18h</span>
+                <span class="chart-label">23h</span>
+              </div>
+              <div class="peak-hours-text" id="peak-hours-text"></div>
+              <div class="favorite-hour-text" id="favorite-hour-text"></div>
+            </div>
+
+            <div class="rankings-section">
+              <div class="section-label">Seus Rankings</div>
+              <div class="rankings-grid" id="rankings-grid">
+              </div>
+            </div>
+
+            <div class="social-section">
+              <div class="social-grid">
+                <div class="social-card" id="rival-card">
+                  <div class="social-card-title">Seu Rival</div>
+                  <div class="rival-info" id="rival-info">
+                    <span class="empty-state" style="padding: 0.5rem;">Nenhum rival</span>
+                  </div>
+                </div>
+                <div class="social-card" id="replies-card">
+                  <div class="social-card-title">Responde mais</div>
+                  <div class="replies-list" id="replies-list">
+                    <span class="empty-state" style="padding: 0.5rem;">Nenhum dado</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="top-emotes-section">
+              <div class="section-label">Top Emotes</div>
+              <div class="section-note">Emotes mais usados nos ultimos 30 dias</div>
+              <div class="top-emotes-grid" id="user-top-emotes">
+                <div class="empty-state">Nenhum emote</div>
+              </div>
+            </div>
+
+            <div class="messages-section">
+              <div class="section-label">Ultimas Mensagens</div>
+              <div class="messages-list" id="messages-list">
+                <div class="empty-state">Nenhuma mensagem</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="right-column">
+        <div class="card">
+          <div class="leaderboard-title">
+            Leaderboards
+            <span class="refresh-indicator">
+              <span class="refresh-dot"></span>
+              <span>ao vivo</span>
+            </span>
+          </div>
+          <div class="leaderboard-tabs">
+            <button class="tab-btn active" data-tab="top">Top 10</button>
+            <button class="tab-btn" data-tab="rising">Rising</button>
+            <button class="tab-btn" data-tab="hours">Horas</button>
+            <button class="tab-btn" data-tab="writers">Escritores</button>
+          </div>
+          <div class="leaderboard-content">
+            <div class="section-note" id="note-top">Quem mais mandou mensagens no periodo</div>
+            <div class="section-note" id="note-rising" style="display: none;">Maior crescimento: ultimos 7 dias vs 7 dias anteriores</div>
+            <div class="section-note" id="note-hours" style="display: none;">Quem domina cada hora do dia</div>
+            <div class="section-note" id="note-writers" style="display: none;">Maior media de caracteres por mensagem (min. 10 msgs)</div>
+            <div class="leaderboard-list" id="leaderboard">
+              <div class="empty-state">Carregando...</div>
+            </div>
+            <div class="leaderboard-list" id="rising-list" style="display: none;">
+              <div class="empty-state">Carregando...</div>
+            </div>
+            <div class="hour-grid" id="hours-list" style="display: none;">
+            </div>
+            <div class="leaderboard-list" id="writers-list" style="display: none;">
+              <div class="empty-state">Carregando...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+    <footer style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.85rem;">
+      by: <a href="https://www.twitch.tv/tossemideia" target="_blank" style="color: var(--accent-green);">tossemideia</a>
+    </footer>
+  </div>
+
+  <script>
+    const API_BASE = '/api/v1';
+
+    let currentUsername = '';
+    let currentPeriod = 'all';
+    let currentTab = 'top';
+    let refreshInterval = null;
+    let searchTimeout = null;
+    let selectedAutocompleteIndex = -1;
+
+    const usernameInput = document.getElementById('username-input');
+    const searchBtn = document.getElementById('search-btn');
+    const chatGeralBtn = document.getElementById('chat-geral-btn');
+    const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+    const generalView = document.getElementById('general-view');
+    const statsSection = document.getElementById('stats-section');
+    const displayNameEl = document.getElementById('display-name');
+    const totalMessagesEl = document.getElementById('total-messages');
+    const percentileText = document.getElementById('percentile-text');
+    const peakHoursText = document.getElementById('peak-hours-text');
+    const favoriteHourText = document.getElementById('favorite-hour-text');
+    const rankingsGrid = document.getElementById('rankings-grid');
+    const hourlyChart = document.getElementById('hourly-chart');
+    const messagesList = document.getElementById('messages-list');
+    const rivalInfo = document.getElementById('rival-info');
+    const repliesList = document.getElementById('replies-list');
+    const leaderboard = document.getElementById('leaderboard');
+    const risingList = document.getElementById('rising-list');
+    const hoursList = document.getElementById('hours-list');
+    const writersList = document.getElementById('writers-list');
+    const activeChattersList = document.getElementById('active-chatters-list');
+    const activeSearch = document.getElementById('active-search');
+    const onlineCountEl = document.getElementById('online-count');
+    const chatActivityChart = document.getElementById('chat-activity-chart');
+    const totalTodayEl = document.getElementById('total-today');
+    const peakInfoEl = document.getElementById('peak-info');
+    const overallActivityChart = document.getElementById('overall-activity-chart');
+    const overallTotalEl = document.getElementById('overall-total');
+    const overallPeakEl = document.getElementById('overall-peak');
+    const chatTopEmotes = document.getElementById('chat-top-emotes');
+    const userTopEmotes = document.getElementById('user-top-emotes');
+    const errorMessage = document.getElementById('error-message');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+
+    let allActiveChatters = [];
+    let seenOnlineUsers = new Map(); // username -> {display_name, last_seen}
+    let sevenTVEmotes = new Map(); // emote name -> emote URL
+
+    searchBtn.addEventListener('click', () => {
+      hideAutocomplete();
+      searchUser();
+    });
+
+    chatGeralBtn.addEventListener('click', () => {
+      showGeneralView();
+    });
+
+    usernameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+        if (selectedAutocompleteIndex >= 0 && items[selectedAutocompleteIndex]) {
+          items[selectedAutocompleteIndex].click();
+        } else {
+          hideAutocomplete();
+          searchUser();
+        }
+      }
+    });
+
+    usernameInput.addEventListener('keydown', (e) => {
+      const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedAutocompleteIndex = Math.min(selectedAutocompleteIndex + 1, items.length - 1);
+        updateAutocompleteSelection(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedAutocompleteIndex = Math.max(selectedAutocompleteIndex - 1, -1);
+        updateAutocompleteSelection(items);
+      } else if (e.key === 'Escape') {
+        hideAutocomplete();
+      }
+    });
+
+    usernameInput.addEventListener('input', () => {
+      const query = usernameInput.value.trim();
+      if (searchTimeout) clearTimeout(searchTimeout);
+
+      if (query.length < 2) {
+        hideAutocomplete();
+        return;
+      }
+
+      searchTimeout = setTimeout(() => {
+        fetchAutocomplete(query);
+      }, 150);
+    });
+
+    usernameInput.addEventListener('focus', () => {
+      const query = usernameInput.value.trim();
+      if (query.length >= 2) {
+        fetchAutocomplete(query);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-wrapper')) {
+        hideAutocomplete();
+      }
+    });
+
+    activeSearch.addEventListener('input', () => {
+      filterActiveChatters(activeSearch.value);
+    });
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPeriod = btn.dataset.period;
+        if (currentUsername) fetchUserStats();
+        fetchLeaderboard();
+      });
+    });
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTab = btn.dataset.tab;
+        switchTab(currentTab);
+      });
+    });
+
+    function switchTab(tab) {
+      leaderboard.style.display = tab === 'top' ? 'flex' : 'none';
+      risingList.style.display = tab === 'rising' ? 'flex' : 'none';
+      hoursList.style.display = tab === 'hours' ? 'grid' : 'none';
+      writersList.style.display = tab === 'writers' ? 'flex' : 'none';
+
+      document.getElementById('note-top').style.display = tab === 'top' ? 'block' : 'none';
+      document.getElementById('note-rising').style.display = tab === 'rising' ? 'block' : 'none';
+      document.getElementById('note-hours').style.display = tab === 'hours' ? 'block' : 'none';
+      document.getElementById('note-writers').style.display = tab === 'writers' ? 'block' : 'none';
+
+      if (tab === 'rising') fetchRisingStars();
+      if (tab === 'hours') fetchHourLeaders();
+      if (tab === 'writers') fetchTopWriters();
+    }
+
+    let chatActivityCounter = 0;
+
+    function startAutoRefresh() {
+      if (refreshInterval) clearInterval(refreshInterval);
+      refreshInterval = setInterval(() => {
+        if (currentTab === 'top') fetchLeaderboard();
+        if (currentUsername) fetchUserStats(true);
+        fetchActiveChatters();
+
+        // Refresh chat activity every 30 seconds (6 intervals)
+        chatActivityCounter++;
+        if (chatActivityCounter >= 6) {
+          fetchChatActivity();
+          chatActivityCounter = 0;
+        }
+      }, 5000);
+    }
+
+    function showGeneralView() {
+      statsSection.classList.remove('visible');
+      generalView.classList.remove('hidden');
+      chatGeralBtn.classList.add('active');
+      hideError();
+    }
+
+    async function searchUser() {
+      const username = usernameInput.value.trim();
+      if (!username) {
+        currentUsername = '';
+        showGeneralView();
+        updateLeaderboardSelection();
+        return;
+      }
+
+      currentUsername = username;
+      hideError();
+      generalView.classList.add('hidden');
+      chatGeralBtn.classList.remove('active');
+      await fetchUserStats();
+      updateLeaderboardSelection();
+    }
+
+    async function fetchUserStats(silent = false) {
+      try {
+        const response = await fetch(
+          `${API_BASE}/stats/user/${encodeURIComponent(currentUsername)}?period=${currentPeriod}`
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            if (!silent) showError('Usuario nao encontrado ou sem mensagens');
+            statsSection.classList.remove('visible');
+            return;
+          }
+          throw new Error('API Error');
+        }
+
+        const data = await response.json();
+        renderStats(data, silent);
+      } catch (error) {
+        console.error('Error:', error);
+        if (!silent) showError('Erro ao buscar dados');
+      }
+    }
+
+    function renderStats(data, silent = false) {
+      statsSection.classList.add('visible');
+      displayNameEl.textContent = data.display_name;
+
+      if (!silent) {
+        animateNumber(totalMessagesEl, data.total_messages);
+      } else {
+        totalMessagesEl.textContent = data.total_messages.toLocaleString('pt-BR');
+      }
+
+      // Percentile
+      if (data.percentile > 0) {
+        percentileText.textContent = '';
+        const text1 = document.createTextNode('Voce chatta mais que ');
+        const span = document.createElement('span');
+        span.textContent = Math.round(data.percentile) + '%';
+        const text2 = document.createTextNode(' dos pererecos');
+        percentileText.appendChild(text1);
+        percentileText.appendChild(span);
+        percentileText.appendChild(text2);
+      } else {
+        percentileText.textContent = '';
+      }
+
+      renderHourlyChart(data.hourly_activity);
+
+      // Peak hours
+      if (data.peak_hours && data.peak_hours.length > 0) {
+        const peakStart = data.peak_hours[0];
+        const peakEnd = data.peak_hours[data.peak_hours.length - 1];
+        peakHoursText.textContent = '';
+        const text1 = document.createTextNode('Horario de pico: ');
+        const span = document.createElement('span');
+        span.textContent = peakStart + 'h - ' + peakEnd + 'h';
+        peakHoursText.appendChild(text1);
+        peakHoursText.appendChild(span);
+      } else {
+        peakHoursText.textContent = '';
+      }
+
+      // Favorite hour
+      if (data.favorite_hour) {
+        favoriteHourText.textContent = '';
+        const text1 = document.createTextNode('Horario favorito: ');
+        const span = document.createElement('span');
+        span.textContent = data.favorite_hour.hour + 'h (' + data.favorite_hour.percentage + '% das msgs)';
+        favoriteHourText.appendChild(text1);
+        favoriteHourText.appendChild(span);
+      } else {
+        favoriteHourText.textContent = '';
+      }
+
+      // Rankings
+      renderRankings(data.rankings);
+
+      // Rival
+      renderRival(data.rival);
+
+      // Top replies
+      renderTopReplies(data.top_replies || []);
+
+      // Top emotes
+      renderTopEmotes(userTopEmotes, data.top_emotes || []);
+
+      renderRecentMessages(data.recent_messages || []);
+    }
+
+    function renderRival(rival) {
+      rivalInfo.textContent = '';
+      if (!rival) {
+        const emptySpan = document.createElement('span');
+        emptySpan.className = 'empty-state';
+        emptySpan.style.padding = '0.5rem';
+        emptySpan.style.fontSize = '0.8rem';
+        emptySpan.textContent = 'Nenhum rival';
+        rivalInfo.appendChild(emptySpan);
+        return;
+      }
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'rival-name';
+      nameSpan.textContent = rival.display_name;
+      nameSpan.onclick = () => selectUser(rival.username);
+
+      const scoreSpan = document.createElement('span');
+      scoreSpan.className = 'rival-score';
+      scoreSpan.textContent = rival.similarity_score + '% similar';
+
+      rivalInfo.appendChild(nameSpan);
+      rivalInfo.appendChild(scoreSpan);
+    }
+
+    function renderTopReplies(replies) {
+      repliesList.textContent = '';
+      if (!replies || replies.length === 0) {
+        const emptySpan = document.createElement('span');
+        emptySpan.className = 'empty-state';
+        emptySpan.style.padding = '0.5rem';
+        emptySpan.style.fontSize = '0.8rem';
+        emptySpan.textContent = 'Nenhum dado';
+        repliesList.appendChild(emptySpan);
+        return;
+      }
+
+      replies.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'reply-item';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'reply-name';
+        nameSpan.textContent = r.display_name;
+        nameSpan.onclick = () => selectUser(r.username);
+
+        const countSpan = document.createElement('span');
+        countSpan.className = 'reply-count';
+        countSpan.textContent = r.reply_count + 'x';
+
+        item.appendChild(nameSpan);
+        item.appendChild(countSpan);
+        repliesList.appendChild(item);
+      });
+    }
+
+    function renderRankings(rankings) {
+      rankingsGrid.textContent = '';
+
+      if (!rankings) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.style.gridColumn = '1 / -1';
+        empty.textContent = 'Sem dados de ranking';
+        rankingsGrid.appendChild(empty);
+        return;
+      }
+
+      // Top rank
+      if (rankings.top_rank) {
+        const item = document.createElement('div');
+        item.className = 'ranking-item';
+
+        const label = document.createElement('span');
+        label.className = 'ranking-label';
+        label.textContent = 'Top Chatters';
+
+        const value = document.createElement('span');
+        value.className = 'ranking-value';
+        value.textContent = '#' + rankings.top_rank;
+
+        if (rankings.top_rank_change !== null && rankings.top_rank_change !== 0) {
+          const change = document.createElement('span');
+          change.className = 'rank-change ' + (rankings.top_rank_change > 0 ? 'up' : 'down');
+          change.textContent = rankings.top_rank_change > 0 ? '+' + rankings.top_rank_change : rankings.top_rank_change;
+          value.appendChild(change);
+        }
+
+        item.appendChild(label);
+        item.appendChild(value);
+        rankingsGrid.appendChild(item);
+      }
+
+      // Rising rank
+      if (rankings.rising_rank) {
+        const item = document.createElement('div');
+        item.className = 'ranking-item';
+
+        const label = document.createElement('span');
+        label.className = 'ranking-label';
+        label.textContent = 'Rising Stars';
+
+        const value = document.createElement('span');
+        value.className = 'ranking-value';
+        value.textContent = '#' + rankings.rising_rank;
+
+        item.appendChild(label);
+        item.appendChild(value);
+        rankingsGrid.appendChild(item);
+      }
+
+      // Writers rank
+      if (rankings.writers_rank) {
+        const item = document.createElement('div');
+        item.className = 'ranking-item';
+
+        const label = document.createElement('span');
+        label.className = 'ranking-label';
+        label.textContent = 'Escritores';
+
+        const value = document.createElement('span');
+        value.className = 'ranking-value';
+        value.textContent = '#' + rankings.writers_rank;
+
+        item.appendChild(label);
+        item.appendChild(value);
+        rankingsGrid.appendChild(item);
+      }
+
+      // Hours dominated
+      if (rankings.hours_dominated && rankings.hours_dominated.length > 0) {
+        const item = document.createElement('div');
+        item.className = 'ranking-item';
+
+        const label = document.createElement('span');
+        label.className = 'ranking-label';
+        label.textContent = 'Domina';
+
+        const value = document.createElement('span');
+        value.className = 'ranking-value';
+        value.textContent = rankings.hours_dominated.map(h => h + 'h').join(', ');
+
+        item.appendChild(label);
+        item.appendChild(value);
+        rankingsGrid.appendChild(item);
+      }
+
+      // If no rankings found
+      if (rankingsGrid.children.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.style.gridColumn = '1 / -1';
+        empty.textContent = 'Sem rankings ainda';
+        rankingsGrid.appendChild(empty);
+      }
+    }
+
+    function renderHourlyChart(hourlyData) {
+      // Convert UTC hours to local timezone
+      const offsetMinutes = new Date().getTimezoneOffset();
+      const offsetHours = offsetMinutes / 60;
+
+      // Reorder data to local timezone
+      const localData = [];
+      for (let localHour = 0; localHour < 24; localHour++) {
+        const utcHour = (localHour + offsetHours + 24) % 24;
+        const utcData = hourlyData.find(h => h.hour === Math.floor(utcHour));
+        localData.push({
+          hour: localHour,
+          count: utcData ? utcData.count : 0
+        });
+      }
+
+      const maxCount = Math.max(...localData.map(h => h.count), 1);
+
+      hourlyChart.textContent = '';
+      localData.forEach(h => {
+        const height = Math.max((h.count / maxCount) * 100, 2);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bar-wrapper';
+        wrapper.dataset.tooltip = h.hour + 'h: ' + h.count.toLocaleString('pt-BR');
+
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = height + '%';
+
+        wrapper.appendChild(bar);
+        hourlyChart.appendChild(wrapper);
+      });
+    }
+
+    function renderMessageWithEmotes(container, text) {
+      // Split by whitespace but keep the delimiters
+      const parts = text.split(/(\s+)/);
+      parts.forEach(part => {
+        if (part.match(/^\s+$/)) {
+          // Whitespace - preserve it
+          container.appendChild(document.createTextNode(part));
+        } else {
+          const emoteUrl = sevenTVEmotes.get(part);
+          if (emoteUrl) {
+            const img = document.createElement('img');
+            img.src = emoteUrl;
+            img.alt = part;
+            img.title = part;
+            img.className = 'chat-emote';
+            img.loading = 'lazy';
+            container.appendChild(img);
+          } else {
+            container.appendChild(document.createTextNode(part));
+          }
+        }
+      });
+    }
+
+    function renderRecentMessages(messages) {
+      messagesList.textContent = '';
+      if (messages.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Nenhuma mensagem';
+        messagesList.appendChild(empty);
+        return;
+      }
+
+      messages.forEach(msg => {
+        const date = new Date(msg.timestamp);
+        const timeStr = date.toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const item = document.createElement('div');
+        item.className = 'message-item';
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'message-text';
+        renderMessageWithEmotes(textDiv, msg.message);
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = timeStr;
+
+        item.appendChild(textDiv);
+        item.appendChild(timeDiv);
+        messagesList.appendChild(item);
+      });
+    }
+
+    function animateNumber(element, target) {
+      const duration = 600;
+      const start = parseInt(element.textContent.replace(/\D/g, '')) || 0;
+      const startTime = performance.now();
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(start + (target - start) * eased);
+        element.textContent = current.toLocaleString('pt-BR');
+
+        if (progress < 1) requestAnimationFrame(update);
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    async function fetchAutocomplete(query) {
+      const lowerQuery = query.toLowerCase();
+
+      // Filter online users that match
+      const onlineMatches = [];
+      seenOnlineUsers.forEach((data, username) => {
+        if (username.includes(lowerQuery) || data.display_name.toLowerCase().includes(lowerQuery)) {
+          onlineMatches.push({
+            username,
+            display_name: data.display_name,
+            isOnline: true
+          });
+        }
+      });
+
+      // Sort by relevance (starts with query first)
+      onlineMatches.sort((a, b) => {
+        const aStarts = a.username.startsWith(lowerQuery) ? 0 : 1;
+        const bStarts = b.username.startsWith(lowerQuery) ? 0 : 1;
+        return aStarts - bStarts;
+      });
+
+      // Fetch from API
+      let apiResults = [];
+      try {
+        const response = await fetch(`${API_BASE}/stats/search?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+          apiResults = await response.json();
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+      }
+
+      // Filter out users already in online matches
+      const onlineUsernames = new Set(onlineMatches.map(u => u.username));
+      const apiMatches = apiResults
+        .filter(u => !onlineUsernames.has(u.username))
+        .map(u => ({
+          username: u.username,
+          display_name: u.display_name,
+          total_messages: u.total_messages,
+          isOnline: false
+        }));
+
+      renderAutocomplete(onlineMatches.slice(0, 5), apiMatches.slice(0, 5));
+    }
+
+    function renderAutocomplete(onlineUsers, allUsers) {
+      autocompleteDropdown.textContent = '';
+      selectedAutocompleteIndex = -1;
+
+      if (onlineUsers.length === 0 && allUsers.length === 0) {
+        hideAutocomplete();
+        return;
+      }
+
+      if (onlineUsers.length > 0) {
+        const section = document.createElement('div');
+        section.className = 'autocomplete-section';
+
+        const header = document.createElement('div');
+        header.className = 'autocomplete-header';
+        header.textContent = 'Online agora';
+        section.appendChild(header);
+
+        onlineUsers.forEach(user => {
+          const item = createAutocompleteItem(user, true);
+          section.appendChild(item);
+        });
+
+        autocompleteDropdown.appendChild(section);
+      }
+
+      if (allUsers.length > 0) {
+        const section = document.createElement('div');
+        section.className = 'autocomplete-section';
+
+        const header = document.createElement('div');
+        header.className = 'autocomplete-header';
+        header.textContent = 'Todos os usuarios';
+        section.appendChild(header);
+
+        allUsers.forEach(user => {
+          const item = createAutocompleteItem(user, false);
+          section.appendChild(item);
+        });
+
+        autocompleteDropdown.appendChild(section);
+      }
+
+      autocompleteDropdown.classList.add('visible');
+    }
+
+    function createAutocompleteItem(user, isOnline) {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.onclick = () => {
+        usernameInput.value = user.username;
+        hideAutocomplete();
+        selectUser(user.username);
+      };
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'autocomplete-name';
+      nameSpan.textContent = user.display_name;
+
+      const badge = document.createElement('span');
+      badge.className = 'autocomplete-badge ' + (isOnline ? 'online' : 'msgs');
+      badge.textContent = isOnline ? 'online' : (user.total_messages + ' msgs');
+
+      item.appendChild(nameSpan);
+      item.appendChild(badge);
+
+      return item;
+    }
+
+    function updateAutocompleteSelection(items) {
+      items.forEach((item, i) => {
+        if (i === selectedAutocompleteIndex) {
+          item.classList.add('selected');
+        } else {
+          item.classList.remove('selected');
+        }
+      });
+    }
+
+    function hideAutocomplete() {
+      autocompleteDropdown.classList.remove('visible');
+      selectedAutocompleteIndex = -1;
+    }
+
+    async function fetchLeaderboard() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/leaderboard?limit=10&period=${currentPeriod}`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        renderLeaderboard(data.leaderboard);
+      } catch (error) {
+        console.error('Error loading leaderboard:', error);
+      }
+    }
+
+    async function fetchRisingStars() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/rising-stars?limit=10`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        renderRisingStars(data.entries);
+      } catch (error) {
+        console.error('Error loading rising stars:', error);
+        risingList.textContent = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Erro ao carregar';
+        risingList.appendChild(empty);
+      }
+    }
+
+    async function fetchHourLeaders() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/hour-leaders`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        renderHourLeaders(data.entries);
+      } catch (error) {
+        console.error('Error loading hour leaders:', error);
+        hoursList.textContent = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Erro ao carregar';
+        hoursList.appendChild(empty);
+      }
+    }
+
+    async function fetchTopWriters() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/top-writers?limit=10`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        renderTopWriters(data.entries);
+      } catch (error) {
+        console.error('Error loading top writers:', error);
+        writersList.textContent = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Erro ao carregar';
+        writersList.appendChild(empty);
+      }
+    }
+
+    async function fetchActiveChatters() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/active-chatters`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        allActiveChatters = data.chatters;
+
+        // Update online count
+        onlineCountEl.textContent = data.count;
+
+        // Track users seen online for autocomplete
+        allActiveChatters.forEach(chatter => {
+          seenOnlineUsers.set(chatter.username, {
+            display_name: chatter.display_name,
+            last_seen: Date.now()
+          });
+        });
+
+        renderActiveChatters(allActiveChatters);
+      } catch (error) {
+        console.error('Error loading active chatters:', error);
+        activeChattersList.textContent = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Erro ao carregar';
+        activeChattersList.appendChild(empty);
+      }
+    }
+
+    async function fetchChatActivity() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/chat-activity`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        renderChatActivity(data);
+      } catch (error) {
+        console.error('Error loading chat activity:', error);
+      }
+    }
+
+    function renderChatActivity(data) {
+      chatActivityChart.textContent = '';
+
+      const currentHour = new Date().getHours();
+      const offsetMinutes = new Date().getTimezoneOffset();
+      const offsetHours = offsetMinutes / 60;
+
+      // Convert UTC to local
+      const localActivity = [];
+      for (let localHour = 0; localHour < 24; localHour++) {
+        const utcHour = Math.floor((localHour + offsetHours + 24) % 24);
+        const activityData = data.activity.find(a => a.hour === utcHour);
+        localActivity.push({
+          hour: localHour,
+          count: activityData ? activityData.count : 0
+        });
+      }
+
+      const maxCount = Math.max(...localActivity.map(a => a.count), 1);
+
+      localActivity.forEach(a => {
+        const bar = document.createElement('div');
+        bar.className = 'activity-bar' + (a.hour === currentHour ? ' current' : '');
+        // Use square root scaling to make small values more visible
+        const ratio = a.count / maxCount;
+        const height = a.count > 0 ? Math.max(Math.sqrt(ratio) * 100, 8) : 2;
+        bar.style.height = height + '%';
+        bar.title = a.hour + 'h: ' + a.count + ' msgs';
+        chatActivityChart.appendChild(bar);
+      });
+
+      totalTodayEl.textContent = data.total_today.toLocaleString('pt-BR');
+
+      // Convert peak hour to local
+      const localPeakHour = (data.peak_hour - offsetHours + 24) % 24;
+      peakInfoEl.textContent = Math.floor(localPeakHour) + 'h (' + data.peak_count + ' msgs)';
+    }
+
+    async function fetchOverallActivity() {
+      try {
+        const response = await fetch(`${API_BASE}/stats/overall-activity`);
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        renderOverallActivity(data);
+      } catch (error) {
+        console.error('Error loading overall activity:', error);
+      }
+    }
+
+    async function fetch7TVEmotes() {
+      try {
+        // Fetch global 7TV emotes
+        const globalRes = await fetch('https://7tv.io/v3/emote-sets/global');
+        if (globalRes.ok) {
+          const globalData = await globalRes.json();
+          if (globalData.emotes) {
+            globalData.emotes.forEach(emote => {
+              sevenTVEmotes.set(emote.name, `https://cdn.7tv.app/emote/${emote.id}/1x.webp`);
+            });
+          }
+        }
+
+        // Fetch channel emotes for omeiaum (specific emote set)
+        const channelRes = await fetch('https://7tv.io/v3/emote-sets/01HR3ABJ800007QJQMTQH1J05C');
+        if (channelRes.ok) {
+          const channelData = await channelRes.json();
+          if (channelData.emotes) {
+            channelData.emotes.forEach(emote => {
+              sevenTVEmotes.set(emote.name, `https://cdn.7tv.app/emote/${emote.id}/1x.webp`);
+            });
+          }
+        }
+
+        console.log('Loaded ' + sevenTVEmotes.size + ' 7TV emotes');
+      } catch (error) {
+        console.error('Error loading 7TV emotes:', error);
+      }
+    }
+
+    function renderOverallActivity(data) {
+      overallActivityChart.textContent = '';
+
+      const offsetMinutes = new Date().getTimezoneOffset();
+      const offsetHours = offsetMinutes / 60;
+
+      // Convert UTC to local
+      const localActivity = [];
+      for (let localHour = 0; localHour < 24; localHour++) {
+        const utcHour = Math.floor((localHour + offsetHours + 24) % 24);
+        const activityData = data.activity.find(a => a.hour === utcHour);
+        localActivity.push({
+          hour: localHour,
+          count: activityData ? activityData.count : 0
+        });
+      }
+
+      const maxCount = Math.max(...localActivity.map(a => a.count), 1);
+
+      localActivity.forEach(a => {
+        const bar = document.createElement('div');
+        bar.className = 'activity-bar';
+        // Use square root scaling to make small values more visible
+        const ratio = a.count / maxCount;
+        const height = a.count > 0 ? Math.max(Math.sqrt(ratio) * 100, 8) : 2;
+        bar.style.height = height + '%';
+        bar.title = a.hour + 'h: ' + a.count.toLocaleString('pt-BR') + ' msgs';
+        overallActivityChart.appendChild(bar);
+      });
+
+      overallTotalEl.textContent = data.total_messages.toLocaleString('pt-BR');
+
+      // Convert peak hour to local
+      const localPeakHour = (data.peak_hour - offsetHours + 24) % 24;
+      overallPeakEl.textContent = Math.floor(localPeakHour) + 'h (' + data.peak_count.toLocaleString('pt-BR') + ' msgs)';
+    }
+
+    function renderTopEmotes(container, emotes) {
+      container.textContent = '';
+
+      if (!emotes || emotes.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nenhum emote encontrado</div>';
+        return;
+      }
+
+      emotes.forEach((emote, index) => {
+        const item = document.createElement('div');
+        item.className = 'emote-item';
+
+        const rank = document.createElement('div');
+        rank.className = 'emote-rank';
+        rank.textContent = '#' + (index + 1);
+
+        const img = document.createElement('img');
+        img.src = `https://cdn.7tv.app/emote/${emote.emote_id}/2x.webp`;
+        img.alt = emote.emote_name;
+        img.title = emote.emote_name;
+        img.loading = 'lazy';
+
+        const count = document.createElement('div');
+        count.className = 'emote-count';
+        count.textContent = emote.count.toLocaleString('pt-BR');
+
+        const name = document.createElement('div');
+        name.className = 'emote-name';
+        name.textContent = emote.emote_name;
+        name.title = emote.emote_name;
+
+        item.appendChild(rank);
+        item.appendChild(img);
+        item.appendChild(count);
+        item.appendChild(name);
+        container.appendChild(item);
+      });
+    }
+
+    async function fetchChatTopEmotes() {
+      try {
+        const response = await fetch('/api/v1/stats/top-emotes');
+        if (response.ok) {
+          const data = await response.json();
+          renderTopEmotes(chatTopEmotes, data.emotes);
+        }
+      } catch (error) {
+        console.error('Error fetching chat top emotes:', error);
+      }
+    }
+
+    function filterActiveChatters(query) {
+      const filtered = query
+        ? allActiveChatters.filter(c =>
+            c.username.toLowerCase().includes(query.toLowerCase()) ||
+            c.display_name.toLowerCase().includes(query.toLowerCase())
+          )
+        : allActiveChatters;
+      renderActiveChatters(filtered);
+    }
+
+    function renderLeaderboard(entries) {
+      leaderboard.textContent = '';
+      if (entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Nenhum dado';
+        leaderboard.appendChild(empty);
+        return;
+      }
+
+      entries.forEach(entry => {
+        const isSelected = currentUsername && entry.username === currentUsername.toLowerCase();
+        const div = document.createElement('div');
+        div.className = 'leaderboard-entry' + (isSelected ? ' selected' : '');
+        div.onclick = () => selectUser(entry.username);
+
+        const rankSpan = document.createElement('span');
+        rankSpan.className = 'rank';
+        rankSpan.textContent = '#' + entry.rank;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'entry-name';
+        nameSpan.textContent = entry.display_name;
+
+        const countSpan = document.createElement('span');
+        countSpan.className = 'entry-count';
+        countSpan.textContent = entry.message_count.toLocaleString('pt-BR');
+
+        div.appendChild(rankSpan);
+        div.appendChild(nameSpan);
+        div.appendChild(countSpan);
+        leaderboard.appendChild(div);
+      });
+    }
+
+    function renderRisingStars(entries) {
+      risingList.textContent = '';
+      if (!entries || entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Nenhum dado';
+        risingList.appendChild(empty);
+        return;
+      }
+
+      entries.forEach(entry => {
+        const isPositive = entry.growth_percent >= 0;
+        const growthDisplay = isPositive ? '+' + entry.growth_percent.toFixed(0) + '%' : entry.growth_percent.toFixed(0) + '%';
+
+        const div = document.createElement('div');
+        div.className = 'leaderboard-entry';
+        div.onclick = () => selectUser(entry.username);
+
+        const rankSpan = document.createElement('span');
+        rankSpan.className = 'rank';
+        rankSpan.textContent = '#' + entry.rank;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'entry-name';
+        nameSpan.textContent = entry.display_name;
+
+        const growthSpan = document.createElement('span');
+        growthSpan.className = 'growth-badge' + (isPositive ? '' : ' negative');
+        growthSpan.textContent = growthDisplay;
+
+        div.appendChild(rankSpan);
+        div.appendChild(nameSpan);
+        div.appendChild(growthSpan);
+        risingList.appendChild(div);
+      });
+    }
+
+    function renderHourLeaders(entries) {
+      hoursList.textContent = '';
+      if (!entries || entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Nenhum dado';
+        hoursList.appendChild(empty);
+        return;
+      }
+
+      // Convert UTC hours to local
+      const offsetMinutes = new Date().getTimezoneOffset();
+      const offsetHours = offsetMinutes / 60;
+
+      // Create a map from UTC hour to entry
+      const utcMap = {};
+      entries.forEach(e => { utcMap[e.hour] = e; });
+
+      // Render in local time order
+      for (let localHour = 0; localHour < 24; localHour++) {
+        const utcHour = Math.floor((localHour + offsetHours + 24) % 24);
+        const entry = utcMap[utcHour];
+
+        const div = document.createElement('div');
+        div.className = 'hour-entry';
+        if (entry) {
+          div.onclick = () => selectUser(entry.username);
+        }
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'hour-label';
+        labelSpan.textContent = localHour + 'h';
+
+        const leaderSpan = document.createElement('span');
+        leaderSpan.className = 'hour-leader';
+        leaderSpan.textContent = entry ? entry.display_name : '-';
+
+        div.appendChild(labelSpan);
+        div.appendChild(leaderSpan);
+        hoursList.appendChild(div);
+      }
+    }
+
+    function renderTopWriters(entries) {
+      writersList.textContent = '';
+      if (!entries || entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Nenhum dado';
+        writersList.appendChild(empty);
+        return;
+      }
+
+      entries.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'writer-entry';
+        div.onclick = () => selectUser(entry.username);
+
+        const rankSpan = document.createElement('span');
+        rankSpan.className = 'rank';
+        rankSpan.textContent = '#' + entry.rank;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'entry-name';
+        nameSpan.textContent = entry.display_name;
+
+        const avgSpan = document.createElement('span');
+        avgSpan.className = 'writer-avg';
+        avgSpan.textContent = entry.avg_length.toFixed(0) + ' chars';
+
+        div.appendChild(rankSpan);
+        div.appendChild(nameSpan);
+        div.appendChild(avgSpan);
+        writersList.appendChild(div);
+      });
+    }
+
+    function renderActiveChatters(chatters) {
+      activeChattersList.textContent = '';
+      if (!chatters || chatters.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Nenhum perereco ativo';
+        activeChattersList.appendChild(empty);
+        return;
+      }
+
+      chatters.forEach(chatter => {
+        const div = document.createElement('div');
+        div.className = 'active-chatter';
+        div.onclick = () => selectUser(chatter.username);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'active-chatter-name';
+        nameSpan.textContent = chatter.display_name;
+
+        const countSpan = document.createElement('span');
+        countSpan.className = 'active-chatter-count';
+        countSpan.textContent = chatter.message_count + ' msgs';
+
+        div.appendChild(nameSpan);
+        div.appendChild(countSpan);
+        activeChattersList.appendChild(div);
+      });
+    }
+
+    function updateLeaderboardSelection() {
+      document.querySelectorAll('.leaderboard-entry').forEach(el => {
+        const nameEl = el.querySelector('.entry-name');
+        if (nameEl) {
+          const name = nameEl.textContent.toLowerCase();
+          if (currentUsername && name === currentUsername.toLowerCase()) {
+            el.classList.add('selected');
+          } else {
+            el.classList.remove('selected');
+          }
+        }
+      });
+    }
+
+    function selectUser(username) {
+      usernameInput.value = username;
+      currentUsername = username;
+      hideError();
+      generalView.classList.add('hidden');
+      chatGeralBtn.classList.remove('active');
+      fetchUserStats();
+      updateLeaderboardSelection();
+    }
+
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorMessage.classList.add('visible');
+    }
+
+    function hideError() {
+      errorMessage.classList.remove('visible');
+    }
+
+    // Initial load
+    chatGeralBtn.classList.add('active');
+    fetch7TVEmotes(); // Load emotes first
+    fetchLeaderboard();
+    fetchActiveChatters();
+    fetchChatActivity();
+    fetchOverallActivity();
+    fetchChatTopEmotes();
+    startAutoRefresh();
+  </script>
+</body>
+</html>
