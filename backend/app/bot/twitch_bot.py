@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 ALLOWED_TAGS: list[str] = []
 ALLOWED_ATTRIBUTES: dict[str, list[str]] = {}
 
+# Bot accounts to ignore (lowercase)
+IGNORED_BOTS: set[str] = {
+    "streamadsbot",
+    "folhinhabot",
+}
+
 
 def sanitize_message(content: str) -> str:
     """Sanitize message content to prevent XSS"""
@@ -71,6 +77,10 @@ class TwitchBot(commands.Bot):
 
     async def event_message(self, message):
         if message.echo:
+            return
+
+        # Ignore bot accounts
+        if message.author.name.lower() in IGNORED_BOTS:
             return
 
         now = datetime.now(timezone.utc)

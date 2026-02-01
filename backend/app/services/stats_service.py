@@ -21,6 +21,15 @@ HTTP_TIMEOUT = 10.0
 MAX_USERS_QUERY = 1000
 MAX_MESSAGES_QUERY = 10000
 
+# Bot accounts to exclude from stats (lowercase)
+IGNORED_BOTS: set[str] = {
+    "streamadsbot",
+    "folhinhabot",
+}
+
+# Base filter to exclude bots from queries
+BOT_FILTER = {"username": {"$nin": list(IGNORED_BOTS)}}
+
 
 def get_query_timeout() -> int:
     """Get MongoDB query timeout from settings"""
@@ -149,6 +158,10 @@ def get_user_query(username: str, user_id: str | None) -> dict:
 
 
 async def get_user_stats(username: str, period: str = "all") -> UserStats | None:
+    # Don't return stats for ignored bots
+    if username.lower() in IGNORED_BOTS:
+        return None
+
     # Resolve user_id to track across username changes
     user_id = await resolve_user_id(username)
     user_query = get_user_query(username, user_id)
@@ -246,10 +259,10 @@ async def get_user_stats(username: str, period: str = "all") -> UserStats | None
 
 async def get_leaderboard(period: str = "all", limit: int = 10) -> LeaderboardResponse:
     date_filter = get_date_filter(period)
-    match_stage = date_filter if date_filter else {}
+    match_stage = {**BOT_FILTER, **date_filter} if date_filter else BOT_FILTER
 
     pipeline = [
-        {"$match": match_stage} if match_stage else {"$match": {}},
+        {"$match": match_stage},
         {"$group": {
             "_id": "$username",
             "display_name": {"$last": "$display_name"},
@@ -262,7 +275,7 @@ async def get_leaderboard(period: str = "all", limit: int = 10) -> LeaderboardRe
     results = await db.messages.aggregate(pipeline).to_list(limit)
 
     count_pipeline = [
-        {"$match": match_stage} if match_stage else {"$match": {}},
+        {"$match": match_stage},
         {"$group": {"_id": None, "total_messages": {"$sum": 1}, "users": {"$addToSet": "$username"}}},
         {"$project": {"total_messages": 1, "total_users": {"$size": "$users"}}}
     ]
@@ -290,12 +303,12 @@ async def get_leaderboard(period: str = "all", limit: int = 10) -> LeaderboardRe
 async def get_user_percentile(username: str, period: str, user_id: str | None = None) -> float:
     """Calculate what % of users this user has more messages than"""
     date_filter = get_date_filter(period)
-    match_stage = date_filter if date_filter else {}
+    match_stage = {**BOT_FILTER, **date_filter} if date_filter else BOT_FILTER
 
     # Get all users' message counts (limited for performance)
     # Group by user_id when available, fall back to username
     pipeline = [
-        {"$match": match_stage} if match_stage else {"$match": {}},
+        {"$match": match_stage},
         {"$group": {"_id": "$username", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
         {"$limit": MAX_USERS_QUERY}
@@ -355,11 +368,11 @@ def get_peak_hours(hourly_activity: list[HourlyActivity]) -> list[int]:
 async def get_rival(username: str, hourly_pattern: list[HourlyActivity], period: str, user_id: str | None = None) -> RivalInfo | None:
     """Find user with most similar hourly activity pattern using cosine similarity"""
     date_filter = get_date_filter(period)
-    match_stage = date_filter if date_filter else {}
+    match_stage = {**BOT_FILTER, **date_filter} if date_filter else BOT_FILTER
 
     # Get hourly patterns for top users only (limited for performance)
     pipeline = [
-        {"$match": match_stage} if match_stage else {"$match": {}},
+        {"$match": match_stage},
         {"$group": {
             "_id": {"username": "$username", "hour": "$hour"},
             "display_name": {"$last": "$display_name"},
@@ -445,8 +458,11 @@ async def get_top_replies(username: str, period: str, limit: int = 5, user_id: s
         window_start = msg_time - timedelta(seconds=10)
 
         previous_messages = await db.messages.find({
-            "username": {"$ne": username.lower()},
-            "timestamp": {"$gte": window_start, "$lt": msg_time}
+            "$and": [
+                BOT_FILTER,
+                {"username": {"$ne": username.lower()}},
+                {"timestamp": {"$gte": window_start, "$lt": msg_time}}
+            ]
         }).limit(50).to_list(50)
 
         for prev_msg in previous_messages:
@@ -478,6 +494,7 @@ async def get_rising_stars(limit: int = 10) -> list[RisingStarEntry]:
     prev_week = now - timedelta(days=14)
 
     pipeline = [
+        {"$match": BOT_FILTER},
         {"$facet": {
             "current": [
                 {"$match": {"timestamp": {"$gte": last_week}}},
@@ -544,6 +561,7 @@ async def get_rising_stars(limit: int = 10) -> list[RisingStarEntry]:
 async def get_hour_leaders() -> list[HourLeaderEntry]:
     """Top chatter for each of the 24 hours"""
     pipeline = [
+        {"$match": BOT_FILTER},
         {"$group": {
             "_id": {"hour": "$hour", "username": "$username"},
             "display_name": {"$last": "$display_name"},
@@ -575,6 +593,7 @@ async def get_hour_leaders() -> list[HourLeaderEntry]:
 async def get_top_writers(limit: int = 10) -> list[WriterEntry]:
     """Users with longest average message length (min 10 messages)"""
     pipeline = [
+        {"$match": BOT_FILTER},
         {"$group": {
             "_id": "$username",
             "display_name": {"$last": "$display_name"},
@@ -606,7 +625,7 @@ async def get_active_chatters(min_messages: int = 5, minutes: int = 5) -> tuple[
     since = now - timedelta(minutes=minutes)
 
     pipeline = [
-        {"$match": {"timestamp": {"$gte": since}}},
+        {"$match": {**BOT_FILTER, "timestamp": {"$gte": since}}},
         {"$group": {
             "_id": "$username",
             "display_name": {"$last": "$display_name"},
@@ -620,6 +639,7 @@ async def get_active_chatters(min_messages: int = 5, minutes: int = 5) -> tuple[
 
     # Get overall leaderboard ranks for active chatters
     rank_pipeline = [
+        {"$match": BOT_FILTER},
         {"$group": {"_id": "$username", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
         {"$limit": MAX_USERS_QUERY}
@@ -658,7 +678,7 @@ async def search_users(query: str, limit: int = 10) -> list[UserSearchResult]:
     escaped_query = re.escape(query.lower())
 
     pipeline = [
-        {"$match": {"username": {"$regex": f"^{escaped_query}", "$options": "i"}}},
+        {"$match": {"$and": [BOT_FILTER, {"username": {"$regex": f"^{escaped_query}", "$options": "i"}}]}},
         {"$group": {
             "_id": "$username",
             "display_name": {"$last": "$display_name"},
@@ -683,12 +703,12 @@ async def search_users(query: str, limit: int = 10) -> list[UserSearchResult]:
 async def get_user_rankings(username: str, period: str, user_id: str | None = None) -> UserRankings:
     """Get user's position in various leaderboards"""
     date_filter = get_date_filter(period)
-    match_stage = date_filter if date_filter else {}
+    match_stage = {**BOT_FILTER, **date_filter} if date_filter else BOT_FILTER
     username_lower = username.lower()
 
     # Get top rank (position in message count leaderboard, limited)
     top_pipeline = [
-        {"$match": match_stage} if match_stage else {"$match": {}},
+        {"$match": match_stage},
         {"$group": {"_id": "$username", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
         {"$limit": MAX_USERS_QUERY}
@@ -710,7 +730,7 @@ async def get_user_rankings(username: str, period: str, user_id: str | None = No
 
         # Get rank from last week
         prev_pipeline = [
-            {"$match": {"timestamp": {"$gte": prev_week, "$lt": last_week}}},
+            {"$match": {**BOT_FILTER, "timestamp": {"$gte": prev_week, "$lt": last_week}}},
             {"$group": {"_id": "$username", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}},
             {"$limit": MAX_USERS_QUERY}
@@ -736,6 +756,7 @@ async def get_user_rankings(username: str, period: str, user_id: str | None = No
 
     # Get writers rank
     writers_pipeline = [
+        {"$match": BOT_FILTER},
         {"$group": {
             "_id": "$username",
             "avg_length": {"$avg": {"$strLenCP": "$message"}},
@@ -772,7 +793,7 @@ async def get_chat_activity_today() -> tuple[list[ChatActivityPoint], int, int, 
     last_24h = now - timedelta(hours=24)
 
     pipeline = [
-        {"$match": {"timestamp": {"$gte": last_24h}}},
+        {"$match": {**BOT_FILTER, "timestamp": {"$gte": last_24h}}},
         {"$group": {"_id": "$hour", "count": {"$sum": 1}}},
         {"$sort": {"_id": 1}}
     ]
@@ -800,6 +821,7 @@ async def get_chat_activity_today() -> tuple[list[ChatActivityPoint], int, int, 
 async def get_overall_hourly_activity() -> tuple[list[ChatActivityPoint], int, int, int]:
     """Get overall chat activity by hour (all time)"""
     pipeline = [
+        {"$match": BOT_FILTER},
         {"$group": {"_id": "$hour", "count": {"$sum": 1}}},
         {"$sort": {"_id": 1}}
     ]
@@ -849,6 +871,7 @@ async def get_chat_top_emotes(limit: int = 5) -> tuple[list[EmoteUsage], int]:
 
     # Sample messages for performance (get most recent ones)
     messages = await db.messages.find({
+        **BOT_FILTER,
         "timestamp": {"$gte": thirty_days_ago}
     }).sort("timestamp", -1).limit(MAX_MESSAGES_QUERY).to_list(MAX_MESSAGES_QUERY)
 
@@ -865,7 +888,7 @@ async def get_unique_chatters_by_hour() -> tuple[list[ChatActivityPoint], int, i
     last_24h = now - timedelta(hours=24)
 
     pipeline = [
-        {"$match": {"timestamp": {"$gte": last_24h}}},
+        {"$match": {**BOT_FILTER, "timestamp": {"$gte": last_24h}}},
         {"$group": {
             "_id": {"hour": "$hour", "username": "$username"}
         }},
