@@ -99,8 +99,19 @@ async def lifespan(app: FastAPI):
         bot = TwitchBot()
         bot_task = asyncio.create_task(bot.start())
         app.state.bot = bot
+        app.state.bot_task = bot_task
+
+        def _bot_task_done(task: asyncio.Task):
+            if task.cancelled():
+                return
+            exc = task.exception()
+            if exc:
+                logger.error("Twitch bot task crashed", exc_info=exc)
+
+        bot_task.add_done_callback(_bot_task_done)
         print("Twitch bot started")
     else:
+        app.state.bot_task = None
         print("Warning: No Twitch OAuth token configured, bot disabled")
 
     yield

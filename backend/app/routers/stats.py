@@ -72,13 +72,20 @@ async def health_check(
     settings = get_settings()
     add_api_version_headers(response)
 
+    # Determine real bot status from the bot task
+    bot_task = getattr(request.app.state, "bot_task", None)
+    if bot_task is None:
+        bot_connected = False  # Bot was never started
+    else:
+        bot_connected = not bot_task.done()  # done() means crashed or stopped
+
     # If health check token is configured, validate it
     if settings.health_check_token:
         if x_health_token != settings.health_check_token:
             # Return minimal info for unauthorized requests
             return HealthResponse(
                 status="ok",
-                bot_connected=True,
+                bot_connected=bot_connected,
                 database_connected=True
             )
 
@@ -88,9 +95,10 @@ async def health_check(
     except Exception:
         db_connected = False
 
+    all_healthy = db_connected and bot_connected
     return HealthResponse(
-        status="healthy" if db_connected else "degraded",
-        bot_connected=True,
+        status="healthy" if all_healthy else "degraded",
+        bot_connected=bot_connected,
         database_connected=db_connected
     )
 
