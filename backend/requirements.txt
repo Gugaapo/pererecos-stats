@@ -9,3 +9,4 @@ httpx>=0.26.0
 slowapi>=0.1.9
 secure>=0.3.0
 bleach>=6.1.0
+websockets>=12.0

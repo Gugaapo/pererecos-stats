@@ -1,149 +1,83 @@
 # Pererecos Stats
 
-Real-time Twitch chat statistics dashboard for tracking chat activity and user engagement.
+Chat statistics dashboard for [omeiaum](https://twitch.tv/omeiaum) (Twitch) and [meiaum](https://kick.com/meiaum) (Kick).
+
+**Live:** [tossemideia.cloud/pererecos-stats](https://tossemideia.cloud/pererecos-stats)
 
 ![Preview](frontend/sapo.avif)
 
+A FastAPI backend stores chat in MongoDB (TwitchIO + Kick listener + EventSub) and serves a vanilla JS UI: user profiles, Ranqueada leaderboards, Folhinha, emotes, Roda (SmokeTime), and Comparar.
+
 ## Features
 
-### User Statistics
-- **Message count** with percentile ranking
-- **Hourly activity chart** showing when users are most active
-- **Peak hours** and **favorite hour** detection
-- **Rival detection** - finds users with similar activity patterns using cosine similarity
-- **Top replies** - who the user responds to most
-- **Leaderboard rankings** across all categories
-- **Top 10 emotes** used (last 30 days)
-- **Recent messages** with 7TV emote rendering
+- **User stats** — message counts, percentiles, hourly activity, rivals, replies, rankings, emotes, recent messages, username history
+- **Ranqueada** — Top chatters, Rising Stars, Hour Leaders, Writers, Famosinhos, Duas Caras, Copycats, Pererecães, and more via a board registry
+- **Folhinha** — FolhinhaBot command/reply boards (`?bonk`, cookies, dungeon, …)
+- **Emotes** — 7TV rendering, rankings, weather, least-used, creators, diversity
+- **Roda (SmokeTime)** — smoke session stats
+- **Chat overview** — active users, 24h activity, unique chatters by hour
+- **Filters** — period (1d / 7d / 30d / all / custom dates) and platform (Twitch / Kick / both)
+- **Export** — CSV of chat messages; feedback endpoint; random “Ribbits” messages
 
-### Leaderboards
-- **Top 10** - Most active chatters
-- **Rising Stars** - Biggest growth (last 7 days vs previous 7 days)
-- **Hour Leaders** - Who dominates each hour of the day
-- **Writers** - Longest average message length
+## Tech stack
 
-### General Chat Stats
-- **Pererecos no Chat** - Active users in the last 5 minutes
-- **Chat activity graph** (last 24 hours) with square root scaling
-- **Average hourly activity** (all-time)
-- **Top 10 emotes** used in chat
+| Layer | Stack |
+| --- | --- |
+| API | FastAPI, Pydantic, SlowAPI |
+| Ingest | TwitchIO, Kick websocket, Twitch EventSub |
+| DB | MongoDB (Motor) |
+| Frontend | Vanilla JS + CSS (no bundler) |
+| Emotes | 7TV |
 
-### Additional Features
-- Real-time auto-refresh (5 second intervals)
-- User search with autocomplete
-- 7TV emote rendering in messages
-- Timezone-aware graphs (converts UTC to local time)
-- Responsive design
+## Quick start
 
-## Tech Stack
-
-### Backend
-- **FastAPI** - Modern Python web framework
-- **Motor** - Async MongoDB driver
-- **TwitchIO** - Twitch chat bot library
-- **Pydantic** - Data validation
-
-### Frontend
-- **Vanilla JavaScript** - No framework dependencies
-- **CSS Grid/Flexbox** - Responsive layout
-- **7TV API** - Emote rendering
-
-### Database
-- **MongoDB** - Document storage for chat messages
-
-## Security Features
-
-- Rate limiting with SlowAPI
-- Input sanitization with bleach
-- CORS configuration
-- Security headers (X-Frame-Options, CSP, etc.)
-- MongoDB query timeouts and limits
-- Request size limits
-- Twitch username validation
-
-## Installation
-
-### Prerequisites
-- Python 3.11+
-- MongoDB
-- Twitch OAuth token
-
-### Backend Setup
+You need **Python 3.11+** and **Docker** (MongoDB). Twitch/Kick tokens are optional.
 
 ```bash
-cd backend
+git clone https://github.com/Gugaapo/pererecos-stats.git
+cd pererecos-stats
 
-# Create virtual environment
+docker compose up -d mongo
+
+cd backend
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or: venv\Scripts\activate  # Windows
-
-# Install dependencies
+source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your settings
+
+# Leave TWITCH_OAUTH_TOKEN empty to skip the bot
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### Environment Variables
+Open http://127.0.0.1:8000 — API docs at `/api/docs`.
 
-```env
-# Required
-TWITCH_OAUTH_TOKEN=oauth:your_token_here
-TWITCH_CHANNEL=your_channel
+See [CONTRIBUTING.md](CONTRIBUTING.md) for env vars, ingest, tests, and how to add a leaderboard.
 
-# Optional
-TWITCH_CLIENT_ID=your_client_id
-TWITCH_CLIENT_SECRET=your_client_secret
-TWITCH_REFRESH_TOKEN=your_refresh_token
+## Environment
 
-MONGODB_URL=mongodb://localhost:27017
-MONGODB_DB_NAME=twitch_stats
+Copy `backend/.env.example` → `backend/.env`. Never commit `.env`.
 
-SEVENTV_EMOTE_SET_ID=your_7tv_emote_set_id
-CORS_ORIGINS=*
-```
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `TWITCH_OAUTH_TOKEN` | For ingest | Empty disables the Twitch bot and EventSub |
+| `TWITCH_CHANNEL` | For ingest | Default `omeiaum` |
+| `TWITCH_CLIENT_ID` / `SECRET` / `REFRESH_TOKEN` | EventSub / token refresh | `channel:moderate` for timeout tracking |
+| `KICK_ENABLED` | No | Default `false` |
+| `MONGODB_URL` | Yes | Default `mongodb://localhost:27017` |
+| `SEVENTV_EMOTE_SET_ID` | No | Channel 7TV set |
+| `CORS_ORIGINS` | No | Comma-separated; local same-origin does not need it |
+| `HEALTH_CHECK_TOKEN` | No | Restricts detailed `/health` |
 
-### Running
+## Production
 
-```bash
-# Start the backend (includes bot and API)
-cd backend
-source venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+The public site is proxied by nginx (`/pererecos-stats` + `/api/v1/` → uvicorn on `127.0.0.1:8000`). [`nginx.conf`](nginx.conf) is a **generic example** — not the live host config.
 
-Access the dashboard at `http://localhost:8000`
-
-### Production Deployment
-
-Use the included `nginx.conf` as a reference for reverse proxy setup:
-
-```bash
-# Copy nginx config
-sudo cp nginx.conf /etc/nginx/sites-available/pererecos-stats
-sudo ln -s /etc/nginx/sites-available/pererecos-stats /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-## API Endpoints
-
-| Endpoint | Description | Rate Limit |
-|----------|-------------|------------|
-| `GET /api/v1/health` | Health check | 120/min |
-| `GET /api/v1/stats/user/{username}` | User statistics | 30/min |
-| `GET /api/v1/stats/leaderboard` | Top chatters | 60/min |
-| `GET /api/v1/stats/rising-stars` | Growth leaders | 30/min |
-| `GET /api/v1/stats/hour-leaders` | Hourly leaders | 30/min |
-| `GET /api/v1/stats/top-writers` | Longest messages | 30/min |
-| `GET /api/v1/stats/active-chatters` | Active users | 60/min |
-| `GET /api/v1/stats/chat-activity` | Last 24h activity | 60/min |
-| `GET /api/v1/stats/overall-activity` | All-time activity | 30/min |
-| `GET /api/v1/stats/top-emotes` | Most used emotes | 30/min |
-| `GET /api/v1/stats/search?q=` | User search | 60/min |
-| `GET /api/v1/stats/compare/{user1}/{user2}` | Compare users | 20/min |
+Operator helpers (`scripts/run_twitch-stats`, `bot-monitor.sh`, systemd) are for the production VPS. Contributors should use `uvicorn` locally.
 
 ## License
 
-MIT
+[MIT](LICENSE)
+
+## Contributing
+
+PRs and issues welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/adding-a-leaderboard.md](docs/adding-a-leaderboard.md).

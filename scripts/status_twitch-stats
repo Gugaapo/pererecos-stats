@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "📊 Checking Twitch Stats (pererecos-stats) status..."
+systemctl status pererecos-stats.service --no-pager -l

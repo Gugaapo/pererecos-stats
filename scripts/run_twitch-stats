@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "🚀 Restarting Twitch Stats (pererecos-stats)..."
+sudo systemctl restart pererecos-stats.service
+echo "✅ Done."

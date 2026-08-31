@@ -1,0 +1,45 @@
+name: Bug report
+description: Something is broken in the dashboard, API, or ingest
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues first. Do not paste tokens, `.env` contents, or production Mongo URLs.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw vs what you expected.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Live site (tossemideia.cloud)
+        - Local clone
+        - API only
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page or endpoint
+      placeholder: e.g. Ranqueada → Duas Caras, or GET /api/v1/stats/leaderboard
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Screenshots, browser, period/platform filters. No secrets.

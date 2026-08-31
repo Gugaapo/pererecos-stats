@@ -3,9 +3,10 @@ from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import asyncio
 import logging
@@ -14,7 +15,19 @@ from pathlib import Path
 from app.config import get_settings
 from app.database import db
 from app.bot.twitch_bot import TwitchBot
+from app.bot.kick_listener import run_kick_listener
 from app.routers.stats import router as stats_router
+from app.rate_limit import limiter
+from app.services.stats_aggregates import (
+    backfill_aggregates,
+    merge_legacy_user_totals,
+    backfill_known_usernames,
+    backfill_smoke_sessions,
+    backfill_user_daily_stats,
+    backfill_folhinha,
+    backfill_famosinhos_heuristic,
+    backfill_copycats,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -22,9 +35,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -94,6 +104,9 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     bot = None
     bot_task = None
+    kick_task = None
+    eventsub_task = None
+    eventsub_stop = asyncio.Event()
 
     if settings.twitch_oauth_token:
         bot = TwitchBot()
@@ -110,11 +123,72 @@ async def lifespan(app: FastAPI):
 
         bot_task.add_done_callback(_bot_task_done)
         print("Twitch bot started")
+
+        from app.bot.eventsub_listener import run_eventsub_listener
+        eventsub_task = asyncio.create_task(run_eventsub_listener(eventsub_stop))
+        app.state.eventsub_task = eventsub_task
+        app.state.eventsub_stop = eventsub_stop
+
+        def _eventsub_done(task: asyncio.Task):
+            if task.cancelled():
+                return
+            exc = task.exception()
+            if exc:
+                logger.error("EventSub listener crashed", exc_info=exc)
+
+        eventsub_task.add_done_callback(_eventsub_done)
+        print("EventSub channel.ban listener started")
     else:
         app.state.bot_task = None
+        app.state.eventsub_task = None
         print("Warning: No Twitch OAuth token configured, bot disabled")
 
+    if settings.kick_enabled:
+        kick_task = asyncio.create_task(run_kick_listener())
+        app.state.kick_task = kick_task
+
+        def _kick_task_done(task: asyncio.Task):
+            if task.cancelled():
+                return
+            exc = task.exception()
+            if exc:
+                logger.error("Kick listener task crashed", exc_info=exc)
+
+        kick_task.add_done_callback(_kick_task_done)
+        print(f"Kick listener started for channel {settings.kick_channel}")
+    else:
+        app.state.kick_task = None
+        print("Kick listener disabled (set KICK_ENABLED=true to enable)")
+
+    async def _run_backfill():
+        try:
+            await backfill_aggregates()
+            await merge_legacy_user_totals()
+            await backfill_known_usernames()
+            await backfill_smoke_sessions()
+            await backfill_user_daily_stats()
+            from app.services.emote_service import sync_emote_catalog, backfill_emote_daily_stats
+            await sync_emote_catalog()
+            await backfill_emote_daily_stats()
+            await backfill_folhinha()
+            await backfill_famosinhos_heuristic()
+            await backfill_copycats()
+            from app.services.stats_service import invalidate_rank_cache
+            invalidate_rank_cache()
+        except Exception as exc:
+            logger.error("Aggregate backfill failed", exc_info=exc)
+
+    backfill_task = asyncio.create_task(_run_backfill())
+    app.state.backfill_task = backfill_task
+
     yield
+
+    if backfill_task and not backfill_task.done():
+        backfill_task.cancel()
+        try:
+            await backfill_task
+        except asyncio.CancelledError:
+            pass
 
     if bot_task:
         bot_task.cancel()
@@ -122,6 +196,27 @@ async def lifespan(app: FastAPI):
             await bot_task
         except asyncio.CancelledError:
             pass
+        except Exception as exc:
+            logger.warning("Twitch bot cleanup error (non-fatal): %s", exc)
+
+    if eventsub_task:
+        eventsub_stop.set()
+        eventsub_task.cancel()
+        try:
+            await eventsub_task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.warning("EventSub cleanup error (non-fatal): %s", exc)
+
+    if kick_task:
+        kick_task.cancel()
+        try:
+            await kick_task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.warning("Kick listener cleanup error (non-fatal): %s", exc)
 
     await db.disconnect()
     print("Shutdown complete")
@@ -130,7 +225,7 @@ async def lifespan(app: FastAPI):
 settings = get_settings()
 app = FastAPI(
     title="Pererecos Stats API",
-    description="Twitch chat statistics for omeiaum channel",
+    description="Chat statistics for omeiaum (Twitch) and meiaum (Kick)",
     version="1.0.0",
     lifespan=lifespan,
     root_path=settings.api_root_path,
@@ -138,9 +233,10 @@ app = FastAPI(
     redoc_url="/api/redoc" if settings.api_root_path == "" else None,
 )
 
-# Rate limiting
+# Rate limiting (shared limiter + middleware so @limiter.limit decorators enforce)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # Security logging middleware (must be first to catch all responses)
 if settings.log_security_events:
@@ -153,13 +249,16 @@ app.add_middleware(RequestSizeLimitMiddleware, max_size=settings.max_request_siz
 if settings.enable_security_headers:
     app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS middleware
-cors_origins = settings.cors_origins.split(",") if settings.cors_origins != "*" else ["*"]
+# CORS middleware — prefer explicit origins in production
+cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if not cors_origins:
+    cors_origins = ["https://tossemideia.cloud"]
+allow_credentials = "*" not in cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET"],
+    allow_origins=cors_origins if "*" not in cors_origins else ["*"],
+    allow_credentials=allow_credentials,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 

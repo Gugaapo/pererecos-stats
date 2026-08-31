@@ -1,12 +1,13 @@
-#!/home/clawdbot/twitch-stats/backend/venv/bin/python3
+#!/usr/bin/env python3
 """Test database connection and basic queries."""
 
 import asyncio
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Add backend to path
-sys.path.insert(0, '/home/clawdbot/twitch-stats/backend')
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 GREEN = '\033[0;32m'
 RED = '\033[0;31m'

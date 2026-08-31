@@ -2,6 +2,7 @@
 # Run all tests
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$SCRIPT_DIR"
 
 red='\033[0;31m'
@@ -10,6 +11,12 @@ cyan='\033[0;36m'
 nc='\033[0m'
 
 TOTAL_FAILED=0
+
+if [ -x "$REPO_ROOT/backend/venv/bin/python3" ]; then
+    PYTHON="$REPO_ROOT/backend/venv/bin/python3"
+else
+    PYTHON="python3"
+fi
 
 run_test() {
     local name="$1"
@@ -20,8 +27,7 @@ run_test() {
     echo ""
 
     if [[ "$script" == *.py ]]; then
-        # Use venv python for Python scripts
-        /home/clawdbot/twitch-stats/backend/venv/bin/python3 "$script"
+        "$PYTHON" "$script"
     else
         bash "$script"
     fi

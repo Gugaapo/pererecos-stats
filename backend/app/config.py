@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     twitch_client_secret: str = ""
     twitch_refresh_token: str = ""
     twitch_channel: str = "omeiaum"
+    kick_enabled: bool = False
+    kick_channel: str = "meiaum"
+    kick_chatroom_id: int = 0
     mongodb_url: str = "mongodb://localhost:27017"
     mongodb_db_name: str = "twitch_stats"
     api_root_path: str = ""
@@ -19,12 +22,12 @@ class Settings(BaseSettings):
     # 7TV Configuration
     seventv_emote_set_id: str = "01HR3ABJ800007QJQMTQH1J05C"
 
-    # CORS Configuration
-    cors_origins: str = "*"  # Comma-separated list of origins, or "*" for all
+    # CORS Configuration (comma-separated origins; avoid "*" in production)
+    cors_origins: str = "https://tossemideia.cloud"
 
     # Security Configuration
     health_check_token: str = ""  # Optional token for health endpoint protection
-    mongodb_timeout_ms: int = 5000  # MongoDB operation timeout
+    mongodb_timeout_ms: int = 30000  # MongoDB operation timeout
     max_request_size: int = 1048576  # 1MB max request size
     enable_security_headers: bool = True
 

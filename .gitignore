@@ -47,3 +47,13 @@ CLAUDE.md
 *.key
 credentials.json
 secrets.json
+
+# Chat dumps / local fixtures (usernames and messages — do not publish)
+backend/app/services/folhinha/*.csv
+
+# One-off local debug scripts
+check_fossabot.py
+check_top_users.py
+reproduce_issue.py
+backend/reproduce_issue.py
+backend/check_twitchio.py

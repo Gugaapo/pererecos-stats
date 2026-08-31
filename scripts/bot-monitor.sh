@@ -2,10 +2,12 @@
 # Bot monitor script for pererecos-stats
 # Detects when the Twitch bot has silently disconnected (even if the
 # process is still running) by checking the age of the last stored message.
-# Run hourly via cron:
-#   0 * * * * /home/clawdbot/twitch-stats/scripts/bot-monitor.sh
+# Run hourly via cron, e.g.:
+#   0 * * * * /path/to/pererecos-stats/scripts/bot-monitor.sh
 
-LOG_FILE="/home/clawdbot/twitch-stats/logs/bot-monitor.log"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOG_FILE="$REPO_ROOT/logs/bot-monitor.log"
 LOCK_FILE="/tmp/pererecos-stats-monitor.lock"
 HEALTH_URL="http://127.0.0.1:8000/api/v1/health"
 SERVICE_NAME="pererecos-stats"

@@ -1,7 +1,10 @@
 #!/bin/bash
-# Restart the uvicorn server
+# Local-dev restart: pkill + background uvicorn.
+# Do not use on production — that unit is systemd (pererecos-stats.service).
 
-BACKEND_DIR="/home/clawdbot/twitch-stats/backend"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "$SCRIPT_DIR/../backend" && pwd)"
+UVICORN="$BACKEND_DIR/venv/bin/uvicorn"
 
 echo "Stopping existing server..."
 pkill -f "uvicorn app.main:app" 2>/dev/null
@@ -9,8 +12,7 @@ sleep 1
 
 echo "Starting server..."
 cd "$BACKEND_DIR"
-source venv/bin/activate
-uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+"$UVICORN" app.main:app --host 127.0.0.1 --port 8000 &
 
 sleep 2
 

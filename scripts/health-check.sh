@@ -2,7 +2,9 @@
 # Health check script for pererecos-stats
 # Checks if the API is responding and restarts the service if not
 
-LOG_FILE="/home/clawdbot/twitch-stats/logs/health-check.log"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOG_FILE="$REPO_ROOT/logs/health-check.log"
 LOCK_FILE="/tmp/pererecos-stats-monitor.lock"
 mkdir -p "$(dirname "$LOG_FILE")"
 

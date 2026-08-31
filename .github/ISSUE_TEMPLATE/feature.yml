@@ -1,0 +1,38 @@
+name: Feature or board idea
+description: New leaderboard, Folhinha parser, UI, or API change
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: For a new Ranqueada board, skim [docs/adding-a-leaderboard.md](https://github.com/Gugaapo/pererecos-stats/blob/main/docs/adding-a-leaderboard.md) first.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should we add
+      description: User-facing behavior. Include the pt-BR title if it is a board.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - New Ranqueada / Pererecães board
+        - Folhinha parser or board
+        - UI / copy
+        - API or ingest
+        - Docs / DX
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: scoring
+    attributes:
+      label: Scoring or rules (boards)
+      description: What increments the count? Any exclusions (bots, commands)?
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Mockups, example chat lines (anonymize if needed). No raw chat dumps.

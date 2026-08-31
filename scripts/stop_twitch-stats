@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "🛑 Stopping Twitch Stats (pererecos-stats)..."
+sudo systemctl stop pererecos-stats.service
+echo "✅ Done."

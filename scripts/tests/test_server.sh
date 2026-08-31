@@ -21,7 +21,7 @@ else
     echo -e "${red}FAIL${nc} Uvicorn process not running"
     echo ""
     echo "Start with:"
-    echo "  cd /home/clawdbot/twitch-stats/backend"
+    echo "  cd backend"
     echo "  source venv/bin/activate"
     echo "  uvicorn app.main:app --host 127.0.0.1 --port 8000"
     exit 1
