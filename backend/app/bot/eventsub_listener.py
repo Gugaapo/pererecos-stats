@@ -11,6 +11,7 @@ import httpx
 import websockets
 
 from app.config import get_settings
+from app.ingest_gate import ingest_enabled
 from app.services.moderation_service import record_eventsub_ban
 
 logger = logging.getLogger(__name__)
@@ -148,6 +149,8 @@ async def _session_loop(settings, stop_event: asyncio.Event | None) -> None:
             if msg_type == "notification":
                 sub = payload.get("subscription") or {}
                 if sub.get("type") == "channel.ban":
+                    if not ingest_enabled():
+                        continue
                     event = payload.get("event") or {}
                     try:
                         await record_eventsub_ban(event)

@@ -1,0 +1,12 @@
+# Local MongoDB for contributors. Production uses a host Mongo, not this file.
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - pererecos-mongo:/data/db
+    restart: unless-stopped
+
+volumes:
+  pererecos-mongo:

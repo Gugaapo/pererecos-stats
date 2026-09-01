@@ -1,6 +1,6 @@
-const API_BASE = '/api/v1';
-    const BASE_PATH = '/pererecos-stats';
-    const DEFAULT_TITLE = 'Pererecos Stats';
+const API_BASE = '/pererecos-stats-subathon/api/v1';
+    const BASE_PATH = '/pererecos-stats-subathon';
+    const DEFAULT_TITLE = 'Pererecos Stats Subathon';
     const RESERVED_SECTIONS = new Set(['emotes', 'roda', 'ranqueada', 'comparar', 'folhinha']);
     const SMOKE_TIME_EMOTE_ID = '01FEHRN6PR000AEZ0QNPT4F4MF';
 
@@ -100,7 +100,7 @@ const API_BASE = '/api/v1';
 
     let customStartDate = null;
     let customEndDate = null;
-    const COLLECTION_START = '2026-01-29';
+    const COLLECTION_START = '2026-09-01';
 
     function periodQueryParams(extra = {}) {
       const params = { ...extra };
@@ -193,7 +193,7 @@ const API_BASE = '/api/v1';
       if (currentPeriod === 'custom' && customStartDate && customEndDate) {
         return formatBRDate(customStartDate) + ' – ' + formatBRDate(customEndDate);
       }
-      return 'desde 29/01/2026';
+      return 'desde 01/09/2026';
     }
 
     function updatePeriodLabels() {
@@ -4327,6 +4327,89 @@ const API_BASE = '/api/v1';
     }
     updateHomeNavIcon();
     setInterval(updateHomeNavIcon, 60 * 1000);
+
+    // Subathon dual timer: untilStart → remainingLive
+    (function initSubathonTimer() {
+      const labelEl = document.getElementById('subathon-timer-label');
+      const valueEl = document.getElementById('subathon-timer-value');
+      const wrapEl = document.getElementById('subathon-timer');
+      if (!labelEl || !valueEl || !wrapEl) return;
+
+      let remainingSeconds = null;
+      let mode = 'untilStart';
+      let tickTimer = null;
+      let syncTimer = null;
+
+      function formatCountdown(totalSeconds) {
+        const s = Math.max(0, Math.floor(totalSeconds));
+        const days = Math.floor(s / 86400);
+        const hours = Math.floor((s % 86400) / 3600);
+        const mins = Math.floor((s % 3600) / 60);
+        const secs = s % 60;
+        const hms =
+          String(hours).padStart(2, '0') + ':' +
+          String(mins).padStart(2, '0') + ':' +
+          String(secs).padStart(2, '0');
+        if (mode === 'untilStart' && days > 0) {
+          return days + 'd ' + hms;
+        }
+        // Unbounded hours for remaining live (may exceed 24h)
+        const totalHours = Math.floor(s / 3600);
+        return (
+          String(totalHours) + ':' +
+          String(mins).padStart(2, '0') + ':' +
+          String(secs).padStart(2, '0')
+        );
+      }
+
+      function render() {
+        if (remainingSeconds == null) {
+          valueEl.textContent = '--:--:--';
+          return;
+        }
+        if (mode === 'untilStart') {
+          labelEl.textContent = 'Subathon começa em';
+        } else {
+          labelEl.textContent = 'Horas de live restantes';
+        }
+        if (remainingSeconds <= 0) {
+          if (mode === 'remainingLive') {
+            valueEl.textContent = '0:00:00';
+            labelEl.textContent = 'Subathon encerrada';
+            wrapEl.classList.add('ended');
+          } else {
+            // untilStart hit zero — wait for next sync to flip mode
+            valueEl.textContent = '0d 00:00:00';
+          }
+          return;
+        }
+        wrapEl.classList.remove('ended');
+        valueEl.textContent = formatCountdown(remainingSeconds);
+      }
+
+      function tick() {
+        if (remainingSeconds == null) return;
+        if (remainingSeconds > 0) remainingSeconds -= 1;
+        render();
+      }
+
+      async function syncFromApi() {
+        try {
+          const res = await fetch(API_BASE + '/subathon/timer');
+          if (!res.ok) throw new Error('timer http ' + res.status);
+          const data = await res.json();
+          mode = data.mode || 'untilStart';
+          remainingSeconds = Math.max(0, Number(data.remaining_seconds) || 0);
+          render();
+        } catch (err) {
+          console.error('Subathon timer sync failed', err);
+        }
+      }
+
+      syncFromApi();
+      tickTimer = setInterval(tick, 1000);
+      syncTimer = setInterval(syncFromApi, 30000);
+    })();
 
     // Initial load from URL (home or deep-linked user)
     initFromURL();

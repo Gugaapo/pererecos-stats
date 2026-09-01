@@ -1,12 +1,14 @@
 # Contributing to Pererecos Stats
 
-Thanks for helping. The live dashboard is [tossemideia.cloud/pererecos-stats](https://tossemideia.cloud/pererecos-stats). Product copy and UI are **pt-BR**; code, comments, and this guide are English.
+Thanks for helping. You are on the **`subathon`** branch. Shared features should still target [`main`](https://github.com/Gugaapo/pererecos-stats/tree/main); timer, ingest gate, Docker/port 8002, and `/pererecos-stats-subathon` paths stay here.
+
+The live subathon dashboard is [tossemideia.cloud/pererecos-stats-subathon](https://tossemideia.cloud/pererecos-stats-subathon). Product copy and UI are **pt-BR**; code, comments, and this guide are English.
 
 ## How we take changes
 
 1. [Open an issue](https://github.com/Gugaapo/pererecos-stats/issues) for bugs or ideas (search first).
-2. Fork the repo and branch from `main` (`feat/short-name` or `fix/short-name`).
-3. Open a pull request against `main`. Describe what changed and how you tested it.
+2. Fork the repo and branch from `subathon` for this instance (`feat/short-name` or `fix/short-name`).
+3. Open a pull request against `subathon`. Describe what changed and how you tested it.
 
 Small, focused PRs are easier to review than large ones. A new Ranqueada board is a good first contribution — follow [docs/adding-a-leaderboard.md](docs/adding-a-leaderboard.md). Cursor users can use the skills under `.cursor/skills/`.
 

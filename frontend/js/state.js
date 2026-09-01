@@ -11,5 +11,5 @@ export const state = {
   customEndDate: null,
 };
 
-export const API_BASE = '/api/v1';
-export const BASE_PATH = '/pererecos-stats';
+export const API_BASE = '/pererecos-stats-subathon/api/v1';
+export const BASE_PATH = '/pererecos-stats-subathon';

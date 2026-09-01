@@ -9,6 +9,7 @@ import httpx
 import logging
 from app.config import get_settings
 from app.database import db
+from app.ingest_gate import ingest_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,9 @@ class TwitchBot(commands.Bot):
         if message.author.name.lower() in SKIP_STORE_BOTS:
             return
 
+        if not ingest_enabled():
+            return
+
         now = datetime.now(timezone.utc)
         now_brt = now.astimezone(BRT)
         username_lower = message.author.name.lower()
@@ -198,12 +202,16 @@ class TwitchBot(commands.Bot):
         except Exception as e:
             logger.error(f"Error saving message: {e}")
 
-        if not is_folhinha:
-            await self.handle_commands(message)
+        # Subathon fork: do not answer chat commands (!stats) — original bot owns those.
+        # if not is_folhinha:
+        #     await self.handle_commands(message)
 
     async def event_raw_data(self, data: str):
         """Handle IRC CLEARMSG / CLEARCHAT to flag mod-removed messages."""
         if " CLEARMSG " not in data and " CLEARCHAT " not in data:
+            return
+
+        if not ingest_enabled():
             return
 
         try:

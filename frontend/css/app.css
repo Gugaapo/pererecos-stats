@@ -33,6 +33,39 @@
       margin-bottom: 2rem;
     }
 
+    .subathon-timer {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0 auto 1.25rem;
+      padding: 0.85rem 1.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: rgba(15, 35, 20, 0.85);
+      min-width: min(100%, 320px);
+    }
+
+    .subathon-timer-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .subathon-timer-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      color: var(--accent-lime);
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+    }
+
+    .subathon-timer.ended .subathon-timer-value {
+      color: var(--text-muted);
+    }
+
     .title-row {
       display: flex;
       align-items: center;

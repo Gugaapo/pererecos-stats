@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # Logging
     log_security_events: bool = True
 
+    # Subathon timer
+    subathon_start: str = "2026-09-01T00:00:00-03:00"
+    subathon_placeholder_seconds: int = 259200
+
     @field_validator("mongodb_url")
     @classmethod
     def validate_mongodb_url(cls, v: str) -> str:

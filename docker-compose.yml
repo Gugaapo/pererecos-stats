@@ -1,12 +1,11 @@
-# Local MongoDB for contributors. Production uses a host Mongo, not this file.
 services:
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - pererecos-mongo:/data/db
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pererecos-stats-subathon
+    network_mode: host
+    env_file:
+      - ./backend/.env
     restart: unless-stopped
-
-volumes:
-  pererecos-mongo:
+    working_dir: /app

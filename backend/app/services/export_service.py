@@ -10,7 +10,7 @@ from app.database import db
 from app.services.stats_aggregates import BOT_FILTER, BRT, date_range_to_utc_bounds
 from app.services.stats_service import get_platform_filter, merge_queries
 
-COLLECTION_START = date(2026, 1, 29)
+COLLECTION_START = date(2026, 9, 1)
 CSV_BATCH_FLUSH = 256
 MAX_EXPORT_DAYS = 365
 

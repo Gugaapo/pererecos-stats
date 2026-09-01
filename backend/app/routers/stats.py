@@ -10,7 +10,7 @@ This module maintains backward compatibility by providing a single
 """
 
 from fastapi import APIRouter
-from . import stats_users, stats_leaderboards, stats_emotes, stats_misc
+from . import stats_users, stats_leaderboards, stats_emotes, stats_misc, stats_subathon
 
 # Create main router
 router = APIRouter()
@@ -20,3 +20,4 @@ router.include_router(stats_users.router, tags=["stats"])
 router.include_router(stats_leaderboards.router, tags=["stats"])
 router.include_router(stats_emotes.router, tags=["stats"])
 router.include_router(stats_misc.router, tags=["stats"])
+router.include_router(stats_subathon.router, tags=["subathon"])

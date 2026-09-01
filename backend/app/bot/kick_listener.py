@@ -11,6 +11,7 @@ from websockets.exceptions import ConnectionClosed
 from app.bot.twitch_bot import sanitize_message
 from app.config import get_settings
 from app.database import db
+from app.ingest_gate import ingest_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,9 @@ def _sanitize_display_name(name: str) -> str:
 
 
 async def save_kick_message(payload: dict, channel: str) -> None:
+    if not ingest_enabled():
+        return
+
     sender = payload.get("sender") or {}
     username = (sender.get("username") or sender.get("slug") or "").lower()
     if not username:
