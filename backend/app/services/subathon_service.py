@@ -8,14 +8,14 @@ Swap the remainingLive branch later for the real upstream.
 from datetime import datetime, timezone
 
 from app.config import get_settings
-from app.ingest_gate import COLLECTION_START
+from app.ingest_gate import COLLECTION_START, ingest_enabled
 
 
 def get_timer() -> dict:
     settings = get_settings()
     now = datetime.now(timezone.utc)
 
-    if now < COLLECTION_START:
+    if not ingest_enabled():
         remaining = max(0, int((COLLECTION_START - now).total_seconds()))
         return {
             "mode": "untilStart",

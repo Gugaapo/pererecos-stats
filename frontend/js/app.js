@@ -4378,8 +4378,8 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
             labelEl.textContent = 'Subathon encerrada';
             wrapEl.classList.add('ended');
           } else {
-            // untilStart hit zero — wait for next sync to flip mode
-            valueEl.textContent = '0d 00:00:00';
+            labelEl.textContent = 'Aguardando a live';
+            valueEl.textContent = '—';
           }
           return;
         }

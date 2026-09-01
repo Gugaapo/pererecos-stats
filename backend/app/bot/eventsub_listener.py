@@ -10,8 +10,10 @@ from typing import Any
 import httpx
 import websockets
 
+from datetime import datetime, timezone
+
 from app.config import get_settings
-from app.ingest_gate import ingest_enabled
+from app.ingest_gate import ingest_enabled, try_latch_stream
 from app.services.moderation_service import record_eventsub_ban
 
 logger = logging.getLogger(__name__)
@@ -58,27 +60,67 @@ async def _resolve_user_ids(settings) -> tuple[str | None, str | None]:
         return broadcaster_id, bot_id
 
 
-async def _subscribe_channel_ban(settings, session_id: str, broadcaster_id: str) -> bool:
+async def _subscribe_eventsub(
+    settings,
+    session_id: str,
+    sub_type: str,
+    version: str,
+    condition: dict[str, str],
+    label: str,
+) -> bool:
     headers = await _helix_headers(settings)
     headers["Content-Type"] = "application/json"
     body = {
-        "type": "channel.ban",
-        "version": "1",
-        "condition": {"broadcaster_user_id": broadcaster_id},
+        "type": sub_type,
+        "version": version,
+        "condition": condition,
         "transport": {"method": "websocket", "session_id": session_id},
     }
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(f"{HELIX}/eventsub/subscriptions", headers=headers, json=body)
         if resp.status_code in (200, 202):
-            logger.info("EventSub channel.ban subscribed for broadcaster %s", broadcaster_id)
+            logger.info("EventSub %s subscribed", label)
             return True
         logger.warning(
-            "EventSub channel.ban subscribe failed (%s): %s — "
-            "token likely missing channel:moderate scope (moderator will stay empty on IRC-only events)",
+            "EventSub %s subscribe failed (%s): %s",
+            label,
             resp.status_code,
             resp.text[:300],
         )
         return False
+
+
+async def _subscribe_channel_ban(settings, session_id: str, broadcaster_id: str) -> bool:
+    ok = await _subscribe_eventsub(
+        settings,
+        session_id,
+        "channel.ban",
+        "1",
+        {"broadcaster_user_id": broadcaster_id},
+        f"channel.ban for broadcaster {broadcaster_id}",
+    )
+    if not ok:
+        logger.warning(
+            "channel.ban likely missing channel:moderate scope "
+            "(moderator will stay empty on IRC-only events)"
+        )
+    return ok
+
+
+async def _subscribe_stream_online(settings, session_id: str, broadcaster_id: str) -> bool:
+    ok = await _subscribe_eventsub(
+        settings,
+        session_id,
+        "stream.online",
+        "1",
+        {"broadcaster_user_id": broadcaster_id},
+        f"stream.online for broadcaster {broadcaster_id}",
+    )
+    if not ok:
+        logger.warning(
+            "stream.online subscribe failed — ingest still uses Helix /streams polling"
+        )
+    return ok
 
 
 async def run_eventsub_listener(stop_event: asyncio.Event | None = None) -> None:
@@ -138,6 +180,7 @@ async def _session_loop(settings, stop_event: asyncio.Event | None) -> None:
                     logger.error("EventSub welcome missing session id")
                     return
                 await _subscribe_channel_ban(settings, session_id, broadcaster_id)
+                await _subscribe_stream_online(settings, session_id, broadcaster_id)
                 continue
 
             if msg_type == "session_reconnect":
@@ -148,15 +191,24 @@ async def _session_loop(settings, stop_event: asyncio.Event | None) -> None:
 
             if msg_type == "notification":
                 sub = payload.get("subscription") or {}
-                if sub.get("type") == "channel.ban":
+                sub_type = sub.get("type")
+                event = payload.get("event") or {}
+
+                if sub_type == "stream.online":
+                    raw = event.get("started_at")
+                    if raw:
+                        started = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                        await try_latch_stream(started, source="eventsub stream.online")
+                    continue
+
+                if sub_type == "channel.ban":
                     if not ingest_enabled():
                         continue
-                    event = payload.get("event") or {}
                     try:
                         await record_eventsub_ban(event)
                     except Exception as exc:
                         logger.error("Failed to record EventSub ban: %s", exc)
-                continue
+                    continue
 
             if msg_type == "session_keepalive":
                 continue

@@ -101,12 +101,17 @@ async def lifespan(app: FastAPI):
     await db.connect()
     print("Database connected")
 
+    from app.ingest_gate import load_ingest_latch, watch_qualifying_stream
+    await load_ingest_latch()
+
     settings = get_settings()
     bot = None
     bot_task = None
     kick_task = None
     eventsub_task = None
     eventsub_stop = asyncio.Event()
+    ingest_watch_task = None
+    ingest_watch_stop = asyncio.Event()
 
     if settings.twitch_oauth_token:
         bot = TwitchBot()
@@ -137,11 +142,26 @@ async def lifespan(app: FastAPI):
                 logger.error("EventSub listener crashed", exc_info=exc)
 
         eventsub_task.add_done_callback(_eventsub_done)
-        print("EventSub channel.ban listener started")
+        print("EventSub listener started (channel.ban + stream.online)")
+
+        ingest_watch_task = asyncio.create_task(watch_qualifying_stream(ingest_watch_stop))
+        app.state.ingest_watch_task = ingest_watch_task
+        app.state.ingest_watch_stop = ingest_watch_stop
+
+        def _ingest_watch_done(task: asyncio.Task):
+            if task.cancelled():
+                return
+            exc = task.exception()
+            if exc:
+                logger.error("Ingest stream watcher crashed", exc_info=exc)
+
+        ingest_watch_task.add_done_callback(_ingest_watch_done)
+        print("Subathon ingest watcher started (waits for a new live)")
     else:
         app.state.bot_task = None
         app.state.eventsub_task = None
         print("Warning: No Twitch OAuth token configured, bot disabled")
+        app.state.ingest_watch_task = None
 
     if settings.kick_enabled:
         kick_task = asyncio.create_task(run_kick_listener())
@@ -208,6 +228,16 @@ async def lifespan(app: FastAPI):
             pass
         except Exception as exc:
             logger.warning("EventSub cleanup error (non-fatal): %s", exc)
+
+    if ingest_watch_task:
+        ingest_watch_stop.set()
+        ingest_watch_task.cancel()
+        try:
+            await ingest_watch_task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.warning("Ingest watcher cleanup error (non-fatal): %s", exc)
 
     if kick_task:
         kick_task.cancel()

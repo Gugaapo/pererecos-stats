@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     # Subathon timer
     subathon_start: str = "2026-09-01T00:00:00-03:00"
     subathon_placeholder_seconds: int = 259200
+    # Ignore the Aug 31 stream that ran past midnight; latch ingest on a new live.
+    subathon_min_stream_start: str = "2026-09-01T06:00:00-03:00"
 
     @field_validator("mongodb_url")
     @classmethod
