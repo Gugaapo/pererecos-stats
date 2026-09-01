@@ -3279,3 +3279,29 @@
       padding: 1rem;
       background: rgba(0, 0, 0, 0.12);
     }
+
+.site-footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding: 1rem 1rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.site-footer a {
+  color: var(--accent-green);
+}
+
+.footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  white-space: nowrap;
+}
+
+.footer-github-icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
