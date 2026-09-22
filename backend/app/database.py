@@ -163,6 +163,21 @@ class DatabaseManager:
         await escritor.create_index([("platform", 1), ("date", 1)])
         await escritor.create_index([("date", 1)])
 
+        # Subathon marathon timer (vinnytasso feed + optional Pixie money)
+        await self.db.marathon_snapshots.create_index([("at", -1)])
+        await self.db.marathon_snapshots.create_index(
+            [("at", 1)],
+            expireAfterSeconds=7776000,
+            name="marathon_snapshots_ttl_90d",
+        )
+        await self.db.marathon_increases.create_index([("at", -1)])
+        await self.db.marathon_increases.create_index([("brt_date", 1)])
+        await self.db.marathon_pauses.create_index([("start_at", -1)])
+        await self.db.marathon_daily.create_index([("date", 1)], unique=True)
+        await self.db.marathon_txn.create_index([("txn_id", 1)], unique=True)
+        await self.db.marathon_txn.create_index([("confirmed_at", -1)])
+        await self.db.pixie_webhook_events.create_index([("webhook_id", 1)], unique=True)
+
         logger.info("Database indexes created")
 
     async def disconnect(self):
@@ -225,6 +240,34 @@ class DatabaseManager:
     @property
     def folhinha_events(self):
         return self.db.folhinha_events
+
+    @property
+    def marathon_state(self):
+        return self.db.marathon_state
+
+    @property
+    def marathon_snapshots(self):
+        return self.db.marathon_snapshots
+
+    @property
+    def marathon_increases(self):
+        return self.db.marathon_increases
+
+    @property
+    def marathon_pauses(self):
+        return self.db.marathon_pauses
+
+    @property
+    def marathon_daily(self):
+        return self.db.marathon_daily
+
+    @property
+    def marathon_txn(self):
+        return self.db.marathon_txn
+
+    @property
+    def pixie_webhook_events(self):
+        return self.db.pixie_webhook_events
 
     @property
     def timeout_ms(self) -> int:

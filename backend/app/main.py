@@ -201,7 +201,51 @@ async def lifespan(app: FastAPI):
     backfill_task = asyncio.create_task(_run_backfill())
     app.state.backfill_task = backfill_task
 
+    marathon_task = None
+    marathon_stop = asyncio.Event()
+    if settings.is_timer_configured:
+        from app.services.subathon_marathon import poll_forever
+        from app.services.timer_client import client as timer_client
+
+        marathon_task = asyncio.create_task(poll_forever(marathon_stop))
+        app.state.marathon_task = marathon_task
+        app.state.marathon_stop = marathon_stop
+
+        def _marathon_done(task: asyncio.Task):
+            if task.cancelled():
+                return
+            exc = task.exception()
+            if exc:
+                logger.error("Marathon poller crashed", exc_info=exc)
+
+        marathon_task.add_done_callback(_marathon_done)
+        print("Marathon timer poller started (vinnytasso /timer)")
+    else:
+        app.state.marathon_task = None
+        app.state.marathon_stop = None
+        print("Marathon timer poller disabled (TIMER_FEED_ENABLED/url not set)")
+
     yield
+
+    if marathon_task:
+        marathon_stop.set()
+        marathon_task.cancel()
+        try:
+            await marathon_task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.warning("Marathon poller cleanup error (non-fatal): %s", exc)
+        try:
+            from app.services.timer_client import client as timer_client
+            await timer_client.aclose()
+        except Exception as exc:
+            logger.warning("Timer client close error (non-fatal): %s", exc)
+        try:
+            from app.services.pixie_client import client as pixie_client
+            await pixie_client.aclose()
+        except Exception as exc:
+            logger.warning("Pixie client close error (non-fatal): %s", exc)
 
     if backfill_task and not backfill_task.done():
         backfill_task.cancel()
