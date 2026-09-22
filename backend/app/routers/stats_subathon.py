@@ -20,6 +20,10 @@ from app.models.schemas.subathon import (
 )
 from app.services.subathon_marathon import handle_webhook_event
 from app.services.subathon_service import get_timer
+from app.services.subathon_insights_service import (
+    build_chat_sync_cached,
+    build_insights_cached,
+)
 from app.services.subathon_stats import (
     contributions,
     daily_series,
@@ -30,7 +34,7 @@ from app.services.subathon_stats import (
     rules_snapshot,
 )
 from app.services.subathon_webhook import SignatureError, verify
-from .stats_common import add_api_version_headers
+from .stats_common import PLATFORM_PATTERN, add_api_version_headers
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,24 @@ router = APIRouter(prefix="/api/v1", tags=["subathon"])
 async def subathon_timer(request: Request, response: Response):
     add_api_version_headers(response)
     return SubathonTimerResponse(**(await get_timer()))
+
+
+@router.get("/subathon/insights", response_model=None)
+async def subathon_insights(request: Request, response: Response):
+    """Timer-tab insight cards. Platform-agnostic — use plain fetch, not apiUrl()."""
+    add_api_version_headers(response)
+    return await build_insights_cached()
+
+
+@router.get("/subathon/chat-sync", response_model=None)
+async def subathon_chat_sync(
+    request: Request,
+    response: Response,
+    platform: str = Query("all", pattern=PLATFORM_PATTERN),
+):
+    """Panic + reactive-emote analytics. Platform-agnostic default; optional filter."""
+    add_api_version_headers(response)
+    return await build_chat_sync_cached(platform)
 
 
 @router.get("/subathon/overview", response_model=SubathonOverviewResponse)
