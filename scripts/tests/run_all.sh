@@ -49,6 +49,7 @@ run_test "Database" "./test_db.py"
 run_test "API Endpoints" "./test_api.sh"
 run_test "Timestamps" "./test_timestamps.sh"
 run_test "Subathon math" "./test_subathon_math.py"
+run_test "Subathon insights" "./test_subathon_insights.py"
 run_test "Subathon webhook" "./test_subathon_webhook.py"
 
 echo ""

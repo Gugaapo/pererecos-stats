@@ -91,6 +91,27 @@ test_endpoint "Overall Activity" "$API/stats/overall-activity" "activity"
 test_endpoint "Unique Chatters" "$API/stats/unique-chatters" "activity"
 test_endpoint "Top Emotes" "$API/stats/top-emotes" "emotes"
 
+# Subathon insights (Timer tab)
+echo ""
+INSIGHTS_BODY=$(curl -s "$API/subathon/insights")
+if echo "$INSIGHTS_BODY" | jq -e '.pace and .records and .feed_health' >/dev/null 2>&1; then
+    echo -e "${green}PASS${nc} Subathon Insights (pace/records/feed_health)"
+    ((PASSED++))
+else
+    echo -e "${red}FAIL${nc} Subathon Insights"
+    echo "  Response: $INSIGHTS_BODY"
+    ((FAILED++))
+fi
+CHAT_SYNC_BODY=$(curl -s "$API/subathon/chat-sync?platform=all")
+if echo "$CHAT_SYNC_BODY" | jq -e '.panic and .reactive_emotes' >/dev/null 2>&1; then
+    echo -e "${green}PASS${nc} Subathon Chat Sync (panic/reactive_emotes)"
+    ((PASSED++))
+else
+    echo -e "${red}FAIL${nc} Subathon Chat Sync"
+    echo "  Response: $CHAT_SYNC_BODY"
+    ((FAILED++))
+fi
+
 # Frontend
 echo ""
 test_endpoint "Frontend (index)" "$BASE_URL/" ""
