@@ -1,0 +1,97 @@
+.roda-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+}
+
+/* Maiores Tragadores */
+
+.tragadores-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tragador-row:hover {
+  background: rgba(46, 204, 113, 0.1);
+  border-color: var(--border-color);
+}
+
+.tragador-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tragador-rank.top1 { color: #ffd700; }
+
+.tragador-rank.top2 { color: #e8e8e8; }
+
+.tragador-rank.top3 { color: #cd7f32; }
+
+.tragador-name {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tragador-name:hover {
+  color: var(--accent-lime);
+}
+
+.tragador-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tragador-streak.active {
+  color: #ff9f43;
+  background: rgba(255, 159, 67, 0.2);
+}
+
+.tragadores-highlights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.tragadores-highlight-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tragadores-streaks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.tragador-streak-row .tragador-name {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tragador-streak-row .tragador-name:hover {
+  color: var(--accent-lime);
+}
+
+.tragadores-today {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.tragadores-today strong {
+  color: var(--accent-lime);
+}
