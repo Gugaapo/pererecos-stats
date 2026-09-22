@@ -17,7 +17,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/pererecos-stats-subathon/static/css/app.css">
+  <link rel="stylesheet" href="/pererecos-stats-subathon/static/css/app.css?v=20260922e">
 
 </head>
 
@@ -34,7 +34,7 @@
       </div>
       <div class="title-row">
         <img src="/pererecos-stats-subathon/static/sapo.avif" alt="" class="title-img">
-        <h1 class="logo">Subathon — Quem é o mais Perereco?</h1>
+        <h1 class="logo">Subathon: Quem é o mais Perereco?</h1>
         <img src="/pererecos-stats-subathon/static/chatting.avif" alt="" class="title-img">
       </div>
       <p class="tagline">Pererecos Stats Subathon — stats do chat em
@@ -91,8 +91,9 @@
           </button>
           <button type="button" class="stats-nav-item" data-section="timer" id="nav-timer"
             title="Estatísticas do timer do Subathon" aria-label="Timer">
-            <img src="https://cdn.7tv.app/emote/01FEHRN6PR000AEZ0QNPT4F4MF/4x.webp"
-                 alt="" class="nav-icon nav-icon-smoketime" width="24" height="24">
+            <img src="https://cdn.7tv.app/emote/01J0FKBS40000BMH9V93EWPYMQ/4x.webp"
+                 alt="" class="nav-icon nav-icon-meiatimer" width="24" height="24"
+                 onerror="this.style.display='none'">
             <span class="stats-nav-label">Timer</span>
             <span class="stats-nav-desc" aria-hidden="true">Quanto tempo o chat já arrancou do MeiaUm</span>
           </button>
@@ -108,7 +109,7 @@
             <span class="stats-nav-label">Ranqueada</span>
             <span class="stats-nav-desc" aria-hidden="true">Top10 listas de Top10 estatísticas desse top10 chat. Top10	</span>
           </button>
-          <button type="button" class="stats-nav-item" data-section="folhinha" id="nav-folhinha" title="Stats do FolhinhaBot — bonk, abraço e roleta" aria-label="Folhinha">
+          <button type="button" class="stats-nav-item" data-section="folhinha" id="nav-folhinha" title="Stats do FolhinhaBot: bonk, abraço e roleta" aria-label="Folhinha">
             <img src="https://static-cdn.jtvnw.net/emoticons/v2/28/default/dark/2.0"
                  alt="" class="nav-icon nav-icon-mrdestructoid" width="24" height="24">
             <span class="stats-nav-label">Folhinha</span>
@@ -122,7 +123,7 @@
             <span class="stats-nav-label">Comparar</span>
             <span class="stats-nav-desc" aria-hidden="true">Rinha de perereco. Quem ganha?</span>
           </button>
-          <button type="button" class="stats-nav-item" data-section="roda" id="nav-roda" title="A Roda — SmokeTime 16:20" aria-label="Roda">
+          <button type="button" class="stats-nav-item" data-section="roda" id="nav-roda" title="A Roda: SmokeTime 16:20" aria-label="Roda">
             <img src="https://cdn.7tv.app/emote/01FEHRN6PR000AEZ0QNPT4F4MF/4x.webp"
                  alt="" class="nav-icon nav-icon-smoketime" width="24" height="24">
             <span class="stats-nav-label">Roda</span>
@@ -182,7 +183,7 @@
 
             <div class="card" style="margin-top: 1rem;">
               <div class="section-label">Mensagens e Pererecos por Hora</div>
-              <div class="section-note" id="note-overall-total">Soma de mensagens (barras) — veja também usuários únicos acima</div>
+              <div class="section-note" id="note-overall-total">Soma de mensagens (barras), veja também usuários únicos acima</div>
               <div class="chat-activity-chart" id="overall-activity-chart"></div>
               <div class="chart-labels">
                 <span class="chart-label">0h</span>
@@ -218,7 +219,7 @@
           <div class="section-panel hidden" id="section-emotes">
             <div class="card" style="margin-top: 0;">
               <div class="section-label">Top Emotes do Chat</div>
-              <div class="section-note" id="note-top-emotes">Emotes mais usados — clique para ver detalhes</div>
+              <div class="section-note" id="note-top-emotes">Emotes mais usados. Clique para ver detalhes</div>
               <div class="top-emotes-grid" id="chat-top-emotes">
                 <div class="empty-state">Carregando...</div>
               </div>
@@ -602,116 +603,233 @@
 
           <div class="section-panel hidden" id="section-timer">
             <div class="card">
-              <div class="section-label">Agora</div>
+              <div class="section-label" data-tip="Situação ao vivo do timer do subathon, atualizada pelo coletor a cada minuto.">Agora</div>
+              <div class="timer-card-head">
+                <img class="timer-emote-icon"
+                     src="https://cdn.7tv.app/emote/01J0FKBS40000BMH9V93EWPYMQ/2x.webp"
+                     alt="MeiaTimer" onerror="this.style.display='none'">
+                <span class="section-note">Coleta do timer começou em 22/09/2026, diferente do chat, que conta desde 06/09/2026.</span>
+              </div>
               <div class="section-note" id="timer-stale" style="display:none;">Dados desatualizados</div>
               <div class="tragadores-highlights">
-                <div class="tragadores-highlight-item">
+                <div class="tragadores-highlight-item" data-tip="Quanto tempo ainda falta no timer neste instante.">
                   <span class="highlight-label">Restante</span>
                   <span class="highlight-value" id="timer-now-remaining">—</span>
                 </div>
-                <div class="tragadores-highlight-item">
+                <div class="tragadores-highlight-item" data-tip="Se o timer está rodando, pausado, travado ou já acabou.">
                   <span class="highlight-label">Estado</span>
                   <span class="highlight-value" id="timer-now-state">—</span>
                 </div>
-                <div class="tragadores-highlight-item">
+                <div class="tragadores-highlight-item" data-tip="Data e hora em que o timer zera se ninguém adicionar mais tempo a partir de agora.">
                   <span class="highlight-label">Termina em</span>
                   <span class="highlight-value" id="timer-now-ends-at">—</span>
                 </div>
               </div>
-              <div class="section-label" style="margin-top:1rem;">Quanto vale cada coisa</div>
-              <div id="timer-rules-table" class="section-note">Regras ainda não disponíveis (Pixie).</div>
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label">Destaques</div>
+              <div class="section-label" data-tip="Recordes do timer e a maior sequência em que ele só cresceu.">Recordes</div>
               <div class="tragadores-highlights">
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Total adicionado</span>
-                  <span class="highlight-value" id="timer-hl-total">—</span>
+                <div class="tragadores-highlight-item" data-tip="Maior tempo de timer já registrado desde 22/09/2026.">
+                  <span class="highlight-label">Maior timer registrado</span>
+                  <span class="highlight-value" id="timer-rec-max">—</span>
                 </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Maior dia</span>
-                  <span class="highlight-value" id="timer-hl-biggest-day">—</span>
+                <div class="tragadores-highlight-item" data-tip="Menor timer registrado, o momento mais baixo da subathon até agora, com data e hora.">
+                  <span class="highlight-label">Susto do subathon</span>
+                  <span class="highlight-value" id="timer-rec-min">—</span>
                 </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Dia mais parado</span>
-                  <span class="highlight-value" id="timer-hl-static-day">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Sequência</span>
-                  <span class="highlight-value" id="timer-hl-streak">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Maior gap</span>
-                  <span class="highlight-value" id="timer-hl-gap">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Pausado</span>
-                  <span class="highlight-value" id="timer-hl-paused">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Doações (txns)</span>
-                  <span class="highlight-value" id="timer-hl-txns">—</span>
+                <div class="tragadores-highlight-item" data-tip="Quanto tempo o ends_at ficou subindo sem parar: sequência atual / maior sequência já vista (em minutos).">
+                  <span class="highlight-label">Sequência de crescimento</span>
+                  <span class="highlight-value" id="timer-streak">—</span>
                 </div>
               </div>
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label">Aumento por dia</div>
+              <div class="section-label" data-tip="Resumo geral da coleta do timer desde 22/09/2026.">Destaques</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item" data-tip="Soma de todo o tempo que o chat já adicionou ao timer desde o início da coleta (22/09/2026).">
+                  <span class="highlight-label">Total adicionado</span>
+                  <span class="highlight-value" id="timer-hl-total">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Dia (horário de Brasília) em que mais segundos foram adicionados ao timer.">
+                  <span class="highlight-label">Maior dia</span>
+                  <span class="highlight-value" id="timer-hl-biggest-day">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Dia com mais tempo de live rastreado e menos segundos adicionados.">
+                  <span class="highlight-label">Dia mais parado</span>
+                  <span class="highlight-value" id="timer-hl-static-day">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Dias seguidos com pelo menos um aumento: sequência atual / maior sequência já vista.">
+                  <span class="highlight-label">Sequência</span>
+                  <span class="highlight-value" id="timer-hl-streak">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Tempo total em que o timer ficou pausado desde o início da coleta.">
+                  <span class="highlight-label">Pausado</span>
+                  <span class="highlight-value" id="timer-hl-paused">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Quanto tempo foi adicionado ao timer em cada dia (BRT). Passe o mouse nas barras para ver o valor.">Aumento por dia</div>
               <div class="chart-container" id="timer-daily-chart" style="height:160px;"></div>
               <div class="chart-labels" id="timer-daily-labels"></div>
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label">Dias que mais aumentaram</div>
+              <div class="section-label" data-tip="Ranking dos dias em que o chat mais colocou tempo no timer.">Dias que mais aumentaram</div>
               <div id="timer-top-days"><div class="empty-state">—</div></div>
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label">Dias mais parados</div>
+              <div class="section-label" data-tip="Ranking dos dias com menos tempo adicionado ao timer.">Dias mais parados</div>
               <div id="timer-static-days"><div class="empty-state">—</div></div>
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label">Por hora (BRT)</div>
+              <div class="section-label" data-tip="Distribuição do tempo adicionado por hora do dia, no horário de Brasília.">Por hora (BRT)</div>
               <div class="chart-container" id="timer-hourly-chart" style="height:120px;"></div>
               <div class="chart-labels" id="timer-hourly-labels"></div>
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label">Contribuições</div>
-              <div class="section-note">Valores anônimos — o webhook não traz identidade do doador.</div>
-              <div class="tragadores-highlights">
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Total</span>
-                  <span class="highlight-value" id="timer-money-total">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Transações</span>
-                  <span class="highlight-value" id="timer-money-count">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Maior</span>
-                  <span class="highlight-value" id="timer-money-biggest">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">Média</span>
-                  <span class="highlight-value" id="timer-money-avg">—</span>
-                </div>
-                <div class="tragadores-highlight-item">
-                  <span class="highlight-label">R$/hora live</span>
-                  <span class="highlight-value" id="timer-money-per-hour">—</span>
-                </div>
+              <div class="section-label" data-tip="Cada linha é o total detectado numa janela do coletor (~1 min), não uma doação individual. Várias doações no mesmo minuto aparecem somadas.">Últimos aumentos</div>
+              <div class="section-note">Cada linha = total na janela do coletor (várias doações no mesmo intervalo saem somadas). Valor em R$ estimado por R$1 → 1 min de timer.</div>
+              <div class="timer-increases-wrap">
+                <table class="timer-increases-table" aria-label="Últimos aumentos do timer">
+                  <thead>
+                    <tr>
+                      <th scope="col">Quando (janela)</th>
+                      <th scope="col">Doado no intervalo</th>
+                      <th scope="col">Impacto no timer</th>
+                    </tr>
+                  </thead>
+                  <tbody id="timer-recent-list">
+                    <tr><td colspan="3" class="empty-state">—</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label">Últimos aumentos</div>
-              <div id="timer-recent-list"><div class="empty-state">—</div></div>
+              <div class="section-label" data-tip="Como o timer está andando agora: ritmo, saldo do dia e projeção de fim.">Ritmo agora</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item" data-tip="Minutos de timer ganhos por hora de relógio na janela recente. A seta compara com as últimas 24h: ↑ acima, ↓ abaixo, → parecido.">
+                  <span class="highlight-label">Velocímetro</span>
+                  <span class="highlight-value" id="timer-pace">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Tempo adicionado hoje menos o que o relógio comeu desde a meia-noite BRT. Positivo = ganhando tempo; negativo = perdendo.">
+                  <span class="highlight-label">Saldo de hoje</span>
+                  <span class="highlight-value" id="timer-balance">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Quando o timer acabaria se o ritmo atual se mantivesse. “Não acaba” significa que, neste ritmo, o chat está ganhando tempo.">
+                  <span class="highlight-label">Termina (este ritmo)</span>
+                  <span class="highlight-value" id="timer-projection">—</span>
+                </div>
+              </div>
+              <div class="section-note" id="timer-projection-note">—</div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Tempo adicionado ao timer em cada uma das últimas 24 horas. Útil pra ver se a live está aquecendo ou esfriando.">Rampa das últimas 24h</div>
+              <div class="chart-container" id="timer-ramp-chart" style="height:120px;"></div>
+              <div class="chart-labels" id="timer-ramp-labels"></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Marcos do timer em horas (24h, 48h, 100h…). ✓ = o timer está acima desse marco agora; a data é quando ele foi cruzado pela primeira vez. Acima de 500h, novos marcos até 1000h aparecem automaticamente.">Marcos</div>
+              <div id="timer-milestones"><div class="empty-state">—</div></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Quantos aumentos caíram em cada faixa de tamanho (ex.: 1–5 min, 5–15 min…). Mostra se o chat costuma doar pouco de cada vez ou em blocos grandes.">Distribuição por magnitude do aumento</div>
+              <div class="section-note">Barras = quantos aumentos houve em cada faixa de tamanho.</div>
+              <div class="chart-container" id="timer-histogram-chart" style="height:100px;"></div>
+              <div class="chart-labels" id="timer-histogram-labels"></div>
+              <div class="tragadores-highlights" style="margin-top:0.75rem;">
+                <div class="tragadores-highlight-item" data-tip="Maior aumento individual de tempo já registrado.">
+                  <span class="highlight-label">Maior</span>
+                  <span class="highlight-value" id="timer-inc-biggest">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Média do tamanho dos aumentos individuais.">
+                  <span class="highlight-label">Média</span>
+                  <span class="highlight-value" id="timer-inc-mean">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Mediana dos aumentos: metade foi menor que isso, metade foi maior.">
+                  <span class="highlight-label">Mediana</span>
+                  <span class="highlight-value" id="timer-inc-median">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Há quanto tempo o timer não recebe nenhum aumento (doação, sub, etc.). Não é falha do coletor — é só o intervalo desde o último evento.">
+                  <span class="highlight-label">Tempo sem doações</span>
+                  <span class="highlight-value" id="timer-dry-now">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Maior intervalo sem nenhum aumento desde o início da coleta. Se incluir downtime do coletor, a nota abaixo avisa.">
+                  <span class="highlight-label">Maior tempo sem doações</span>
+                  <span class="highlight-value" id="timer-dry-record">—</span>
+                </div>
+              </div>
+              <div class="section-note" id="timer-dry-note">Tempo sem doações = intervalo desde o último aumento no timer.</div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Qual hora do dia (BRT) tem o melhor e o pior saldo: tempo ganho menos o que o relógio comeu.">Melhor e pior hora do dia</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item" data-tip="Hora de Brasília com melhor saldo (mais ganho líquido de tempo). Só conta horas com pelo menos ~30 min observados.">
+                  <span class="highlight-label">Melhor hora</span>
+                  <span class="highlight-value" id="timer-hour-best">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Hora de Brasília com pior saldo (mais tempo “comido” pelo relógio do que adicionado).">
+                  <span class="highlight-label">Pior hora</span>
+                  <span class="highlight-value" id="timer-hour-worst">—</span>
+                </div>
+              </div>
+              <div class="section-note">Saldo = ganho menos o que o relógio comeu, por hora BRT.</div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Quanto do tempo adicionado veio com a live online vs. offline, segundo o status do feed no momento do aumento.">Live vs. offline</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item" data-tip="Tempo adicionado ao timer enquanto o feed reportava a live online.">
+                  <span class="highlight-label">Adicionado em live</span>
+                  <span class="highlight-value" id="timer-live-online">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Tempo adicionado ao timer enquanto o feed reportava offline (ou outro status que não seja online).">
+                  <span class="highlight-label">Adicionado offline</span>
+                  <span class="highlight-value" id="timer-live-offline">—</span>
+                </div>
+              </div>
+              <div id="timer-live-ratio" style="margin-top:0.75rem;"></div>
+              <div class="section-note" id="timer-live-note">—</div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Quando o timer fica abaixo de 30 minutos: quanto tempo isso durou e como o chat reagiu nesses momentos.">Pânico no chat</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item" data-tip="Tempo total em que o timer ficou abaixo de 30 minutos desde o início da coleta.">
+                  <span class="highlight-label">Tempo em pânico</span>
+                  <span class="highlight-value" id="timer-panic-time">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Mensagens por minuto do chat durante os momentos de pânico (timer abaixo de 30 min).">
+                  <span class="highlight-label">Msgs/min em pânico</span>
+                  <span class="highlight-value" id="timer-panic-rate">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Diferença percentual entre o ritmo do chat em pânico e o ritmo normal no mesmo período. Positivo = chat mais agitado no susto.">
+                  <span class="highlight-label">Vs. baseline</span>
+                  <span class="highlight-value" id="timer-panic-delta">—</span>
+                </div>
+              </div>
+              <div id="timer-panic-top"><div class="empty-state">—</div></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Emotes cujo uso dispara nos 5 minutos depois de um aumento, comparados com o ritmo normal do período.">Emote reativo</div>
+              <div class="section-note">Emotes que explodem nos 5 min depois de um aumento, comparados com o normal.</div>
+              <div id="timer-reactive-emotes"><div class="empty-state">—</div></div>
             </div>
 
             <div class="empty-state" id="timer-empty" style="display:none;">
-              Ainda sem histórico do timer. As estatísticas começam no dia do deploy — não há dados anteriores.
+              Ainda sem histórico do timer. A coleta do timer começou em 22/09/2026 (o chat conta desde 06/09/2026) — não há dados anteriores.
             </div>
           </div>
         </section>
@@ -1056,8 +1174,8 @@
     </div>
   </div>
 
-  <script type="module" src="/pererecos-stats-subathon/static/js/main.js"></script>
-  <script src="/pererecos-stats-subathon/static/js/app.js" defer></script>
+  <script type="module" src="/pererecos-stats-subathon/static/js/main.js?v=20260922e"></script>
+  <script src="/pererecos-stats-subathon/static/js/app.js?v=20260922e" defer></script>
 </body>
 
 </html>

@@ -203,7 +203,7 @@ export function renderOpposingBars(data) {
 
 /**
  * Stacked ratio bar (donut-style substitute).
- * @param {Array<{label: string, value: number, className?: string}>} parts
+ * @param {Array<{label: string, value: number, className?: string, display?: string}>} parts
  * @returns {HTMLElement}
  */
 export function renderRatioBar(parts) {
@@ -218,16 +218,17 @@ export function renderRatioBar(parts) {
   list.forEach((p, i) => {
     const v = Number(p.value) || 0;
     const pct = Math.round((v / total) * 100);
+    const shown = p.display != null ? String(p.display) : fmtNum(v);
     const seg = document.createElement('span');
     seg.className = 'ratio-bar-seg ' + (p.className || 'ratio-seg-' + (i + 1));
     seg.style.width = pct + '%';
-    seg.title = `${p.label}: ${fmtNum(v)} (${pct}%)`;
+    seg.title = `${p.label}: ${shown} (${pct}%)`;
     track.appendChild(seg);
     const leg = document.createElement('span');
     leg.className = 'ratio-leg';
     leg.innerHTML =
       `<i class="ratio-dot ${p.className || 'ratio-seg-' + (i + 1)}"></i>` +
-      `${esc(p.label)} ${fmtNum(v)} (${pct}%)`;
+      `${esc(p.label)} ${esc(shown)} (${pct}%)`;
     legend.appendChild(leg);
   });
   wrap.appendChild(track);

@@ -3,6 +3,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
     const DEFAULT_TITLE = 'Pererecos Stats Subathon';
     const RESERVED_SECTIONS = new Set(['emotes', 'roda', 'ranqueada', 'comparar', 'folhinha', 'timer']);
     const SMOKE_TIME_EMOTE_ID = '01FEHRN6PR000AEZ0QNPT4F4MF';
+    const MEIA_TIMER_EMOTE_ID = '01J0FKBS40000BMH9V93EWPYMQ';
 
     let currentUsername = '';
     let currentPeriod = 'all';
@@ -18,6 +19,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
     let emotesCondensadasLoaded = false;
     let smokeTimeLoaded = false;
     let timerSectionLoaded = false;
+    let chatSyncLoaded = false;
     let ranqueadaSectionLoaded = false;
     let folhinhaSectionLoaded = false;
     let compararSectionLoaded = false;
@@ -300,9 +302,46 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       return '+' + h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
     }
 
-    function formatBrlMinor(minor) {
-      const n = Math.max(0, Math.floor(Number(minor) || 0));
-      return 'R$ ' + (n / 100).toFixed(2).replace('.', ',');
+    // MeiaUm tip rule observed live: R$1 -> 60s of timer. Used only to estimate
+    // BRL from poller deltas until Pixie webhooks give real per-txn amounts.
+    const TIP_SECONDS_PER_REAL = 60;
+
+    function estimateBrlFromGrantedSeconds(seconds) {
+      const s = Math.max(0, Math.floor(Number(seconds) || 0));
+      if (!s || TIP_SECONDS_PER_REAL <= 0) return null;
+      const reais = s / TIP_SECONDS_PER_REAL;
+      return 'R$ ' + reais.toFixed(2).replace('.', ',');
+    }
+
+    function formatPollWindowLabel(at, precisionSeconds) {
+      if (!at) return '—';
+      const end = new Date(at);
+      const prec = Math.max(0, Math.floor(Number(precisionSeconds) || 0));
+      const pad = (n) => String(n).padStart(2, '0');
+      const endLabel =
+        pad(end.getDate()) + '/' + pad(end.getMonth() + 1) + ' ' +
+        pad(end.getHours()) + ':' + pad(end.getMinutes());
+      if (prec <= 0) return endLabel + ' · janela ~1 min';
+      const start = new Date(end.getTime() - prec * 1000);
+      const sameDay =
+        start.getDate() === end.getDate() &&
+        start.getMonth() === end.getMonth() &&
+        start.getFullYear() === end.getFullYear();
+      const startClock = pad(start.getHours()) + ':' + pad(start.getMinutes());
+      const endClock = pad(end.getHours()) + ':' + pad(end.getMinutes());
+      if (sameDay && startClock === endClock) {
+        return endLabel + ' · ~' + formatTimerDuration(prec);
+      }
+      if (sameDay) {
+        return (
+          pad(end.getDate()) + '/' + pad(end.getMonth() + 1) + ' ' +
+          startClock + '–' + endClock
+        );
+      }
+      return (
+        pad(start.getDate()) + '/' + pad(start.getMonth() + 1) + ' ' + startClock +
+        ' – ' + endLabel
+      );
     }
 
     function renderTimerBarChart(container, labelsEl, values, labelFn) {
@@ -313,11 +352,11 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       values.forEach((v, i) => {
         const wrap = document.createElement('div');
         wrap.className = 'bar-wrapper';
+        wrap.dataset.tooltip = labelFn(i, v);
         const bar = document.createElement('div');
         bar.className = 'bar';
         const ratio = Math.max(0, v) / max;
         bar.style.height = Math.max(2, Math.sqrt(ratio) * 100) + '%';
-        bar.title = labelFn(i, v);
         wrap.appendChild(bar);
         container.appendChild(wrap);
         if (labelsEl) {
@@ -342,6 +381,10 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       rows.forEach((row, idx) => {
         const div = document.createElement('div');
         div.className = 'active-chatter';
+        div.setAttribute(
+          'data-tip',
+          'Dia ' + (row.date || '—') + ': ' + valueFn(row) + ' adicionados ao timer.'
+        );
         const rank = document.createElement('span');
         rank.className = 'active-chatter-rank';
         rank.textContent = String(idx + 1);
@@ -365,9 +408,8 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
         '/subathon/daily?days=30',
         '/subathon/hourly',
         '/subathon/increases?limit=25',
-        '/subathon/contributions',
-        '/subathon/rules',
         '/subathon/timer',
+        '/subathon/insights',
       ];
       const results = await Promise.all(
         paths.map((p) => fetch(API_BASE + p).then((r) => {
@@ -380,9 +422,8 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
         daily: results[1],
         hourly: results[2],
         increases: results[3],
-        contributions: results[4],
-        rules: results[5],
-        timer: results[6],
+        timer: results[4],
+        insights: results[5],
       };
     }
 
@@ -428,23 +469,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
           : '—'
       );
       setText('timer-hl-streak', String(ov.current_active_streak || 0) + ' / max ' + (ov.longest_active_streak || 0));
-      setText(
-        'timer-hl-gap',
-        ov.longest_gap ? formatTimerDuration(ov.longest_gap.seconds) : '—'
-      );
       setText('timer-hl-paused', formatTimerDuration(ov.paused_total_seconds));
-      const contrib = data.contributions || {};
-      setText('timer-hl-txns', String(contrib.txn_count || 0));
-      setText('timer-money-total', formatBrlMinor(contrib.money_minor_units));
-      setText('timer-money-count', String(contrib.txn_count || 0));
-      setText('timer-money-biggest', formatBrlMinor(contrib.biggest_txn));
-      setText('timer-money-avg', formatBrlMinor(contrib.avg_txn_minor_units));
-      setText(
-        'timer-money-per-hour',
-        contrib.implied_brl_per_live_hour != null
-          ? formatBrlMinor(contrib.implied_brl_per_live_hour)
-          : '—'
-      );
 
       const daily = Array.isArray(data.daily) ? data.daily : [];
       renderTimerBarChart(
@@ -473,46 +498,357 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
         (i, v, short) => (short ? String(i) : (i + 'h — ' + formatPlusHms(v)))
       );
 
-      const rulesEl = document.getElementById('timer-rules-table');
-      if (rulesEl) {
-        rulesEl.textContent = '';
-        const table = data.rules?.conversion_table || [];
-        if (!table.length) {
-          rulesEl.textContent = 'Regras ainda não disponíveis (Pixie).';
+      const recentEl = document.getElementById('timer-recent-list');
+      if (recentEl) {
+        recentEl.textContent = '';
+        const items = (data.increases?.items || []).filter(
+          (it) => it.kind === 'grant' && (it.granted_seconds || 0) > 0
+        );
+        if (!items.length) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 3;
+          td.className = 'empty-state';
+          td.textContent = '—';
+          tr.appendChild(td);
+          recentEl.appendChild(tr);
         } else {
-          table.forEach((row) => {
-            const line = document.createElement('div');
-            line.textContent = (row.label || '') + ' → ' + (row.human || '');
-            rulesEl.appendChild(line);
+          items.forEach((it) => {
+            const tr = document.createElement('tr');
+            const windowLabel = formatPollWindowLabel(it.at, it.precision_seconds);
+            const brl = estimateBrlFromGrantedSeconds(it.granted_seconds) || '—';
+            const impact = formatPlusHms(it.granted_seconds);
+            tr.setAttribute(
+              'data-tip',
+              'Total detectado na janela ' + windowLabel +
+                ' — pode somar várias doações. Estimativa R$1 → 1 min de timer.'
+            );
+            const tdWhen = document.createElement('td');
+            tdWhen.textContent = windowLabel;
+            const tdBrl = document.createElement('td');
+            tdBrl.textContent = brl;
+            const tdImpact = document.createElement('td');
+            tdImpact.textContent = impact;
+            tr.appendChild(tdWhen);
+            tr.appendChild(tdBrl);
+            tr.appendChild(tdImpact);
+            recentEl.appendChild(tr);
+          });
+        }
+      }
+      renderInsights(data.insights);
+    }
+
+    const PACE_ARROW = { up: '↑', down: '↓', flat: '→', unknown: '—' };
+
+    function formatSigned(seconds) {
+      const s = Math.floor(Number(seconds) || 0);
+      const sign = s > 0 ? '+' : (s < 0 ? '-' : '');
+      return sign + formatTimerDuration(Math.abs(s));
+    }
+
+    function formatHourBRT(hour) {
+      if (hour === null || hour === undefined) return '—';
+      return String(hour).padStart(2, '0') + 'h';
+    }
+
+    function renderInsights(data) {
+      const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+      };
+      const ins = data || {};
+      const pace = ins.pace || {};
+      setText(
+        'timer-pace',
+        pace.minutes_per_hour == null
+          ? '—'
+          : pace.minutes_per_hour + ' min/h ' + (PACE_ARROW[pace.arrow] || '')
+      );
+      const bal = ins.balance || {};
+      setText(
+        'timer-balance',
+        bal.net_seconds == null ? '—' : formatSigned(bal.net_seconds)
+      );
+      const proj = ins.projection || {};
+      if (!proj.available) {
+        setText('timer-projection', '—');
+        setText('timer-projection-note', '—');
+      } else if (proj.finite === false) {
+        setText('timer-projection', 'não acaba');
+        setText('timer-projection-note', 'A este ritmo o timer está ganhando tempo.');
+      } else {
+        setText(
+          'timer-projection',
+          proj.eta ? new Date(proj.eta).toLocaleString('pt-BR') : '—'
+        );
+        setText(
+          'timer-projection-note',
+          'Sem doações: ' +
+            (proj.naive_eta ? new Date(proj.naive_eta).toLocaleString('pt-BR') : '—') +
+            (proj.confidence === 'low' ? ' · confiança baixa (pouco histórico)' : '')
+        );
+      }
+
+      const ramp = Array.isArray(ins.ramp_24h) ? ins.ramp_24h : [];
+      renderTimerBarChart(
+        document.getElementById('timer-ramp-chart'),
+        document.getElementById('timer-ramp-labels'),
+        ramp.map((r) => r.granted_seconds || 0),
+        (i, v, short) => (short ? (ramp[i] ? '-'.concat(ramp[i].hours_ago, 'h') : '') : (ramp[i] ? ramp[i].hours_ago + 'h atrás — ' + formatPlusHms(v) : ''))
+      );
+
+      const msEl = document.getElementById('timer-milestones');
+      if (msEl) {
+        msEl.textContent = '';
+        const rows = Array.isArray(ins.milestones) ? ins.milestones : [];
+        if (!rows.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.textContent = '—';
+          msEl.appendChild(empty);
+        } else {
+          rows.forEach((m) => {
+            const row = document.createElement('div');
+            row.className = 'active-chatter';
+            row.setAttribute(
+              'data-tip',
+              m.above
+                ? ('Marco de ' + m.label + ': o timer está acima disso agora' +
+                  (m.crossed_at
+                    ? (m.estimated
+                      ? ' (já estava acima desde o início da coleta).'
+                      : ' (cruzado em ' + new Date(m.crossed_at).toLocaleString('pt-BR') + ').')
+                    : '.'))
+                : ('Marco de ' + m.label + ': ainda não foi batido — o timer está abaixo disso.')
+            );
+            const mark = document.createElement('span');
+            mark.className = 'active-chatter-rank';
+            mark.textContent = m.above ? '✓' : '✗';
+            const name = document.createElement('span');
+            name.className = 'active-chatter-name';
+            name.textContent = m.label;
+            const val = document.createElement('span');
+            val.className = 'active-chatter-count';
+            val.textContent = m.crossed_at
+              ? new Date(m.crossed_at).toLocaleDateString('pt-BR') +
+                (m.estimated ? ' (desde o início)' : '')
+              : (m.above ? 'acima agora' : 'não batido');
+            row.appendChild(mark);
+            row.appendChild(name);
+            row.appendChild(val);
+            msEl.appendChild(row);
           });
         }
       }
 
-      const recentEl = document.getElementById('timer-recent-list');
-      if (recentEl) {
-        recentEl.textContent = '';
-        const items = data.increases?.items || [];
-        if (!items.length) {
+      const rec = ins.records || {};
+      setText(
+        'timer-rec-max',
+        rec.max_remaining_seconds == null
+          ? '—'
+          : formatTimerDuration(rec.max_remaining_seconds) +
+            (rec.max_remaining_at ? ' · ' + new Date(rec.max_remaining_at).toLocaleString('pt-BR') : '')
+      );
+      setText(
+        'timer-rec-min',
+        rec.min_remaining_seconds == null
+          ? '—'
+          : formatTimerDuration(rec.min_remaining_seconds) +
+            (rec.min_remaining_at ? ' · ' + new Date(rec.min_remaining_at).toLocaleString('pt-BR') : '')
+      );
+      const streak = ins.growth_streak || {};
+      setText(
+        'timer-streak',
+        (streak.current_minutes || 0) + ' / max ' + (streak.longest_minutes || 0) + ' min'
+      );
+
+      const dist = ins.distribution || {};
+      const buckets = Array.isArray(dist.buckets) ? dist.buckets : [];
+      renderTimerBarChart(
+        document.getElementById('timer-histogram-chart'),
+        document.getElementById('timer-histogram-labels'),
+        buckets.map((b) => b.count || 0),
+        (i, v, short) => (short ? String(v) : (buckets[i] ? buckets[i].label + ' — ' + v + ' eventos' : ''))
+      );
+      setText('timer-inc-biggest', dist.biggest_seconds == null ? '—' : formatPlusHms(dist.biggest_seconds));
+      setText('timer-inc-mean', dist.mean_seconds == null ? '—' : formatPlusHms(dist.mean_seconds));
+      setText('timer-inc-median', dist.median_seconds == null ? '—' : formatPlusHms(dist.median_seconds));
+      const dry = ins.dry_spell || {};
+      setText('timer-dry-now', dry.since_seconds == null ? '—' : formatTimerDuration(dry.since_seconds));
+      setText('timer-dry-record', dry.record_seconds ? formatTimerDuration(dry.record_seconds) : '—');
+      setText(
+        'timer-dry-note',
+        dry.record_may_include_downtime
+          ? 'Atenção: o maior tempo sem doações pode incluir período sem coleta.'
+          : 'Tempo sem doações = intervalo desde o último aumento no timer.'
+      );
+
+      const hours = ins.hours || {};
+      setText('timer-hour-best', hours.best ? formatHourBRT(hours.best.hour) + ' (' + formatSigned(hours.best.net_seconds) + ')' : '—');
+      setText('timer-hour-worst', hours.worst ? formatHourBRT(hours.worst.hour) + ' (' + formatSigned(hours.worst.net_seconds) + ')' : '—');
+
+      const live = ins.live || {};
+      setText('timer-live-online', formatTimerDuration(live.online_granted_seconds));
+      setText('timer-live-offline', formatTimerDuration(live.offline_granted_seconds));
+      const liveRatioEl = document.getElementById('timer-live-ratio');
+      if (liveRatioEl) {
+        liveRatioEl.textContent = '';
+        const onlineSec = Number(live.online_granted_seconds) || 0;
+        const offlineSec = Number(live.offline_granted_seconds) || 0;
+        const viz = window.PererecosViz;
+        if (viz && typeof viz.renderRatioBar === 'function' && (onlineSec > 0 || offlineSec > 0)) {
+          liveRatioEl.appendChild(
+            viz.renderRatioBar([
+              {
+                label: 'Live',
+                value: onlineSec,
+                display: formatTimerDuration(onlineSec),
+                className: 'ratio-seg-1',
+              },
+              {
+                label: 'Offline',
+                value: offlineSec,
+                display: formatTimerDuration(offlineSec),
+                className: 'ratio-seg-2',
+              },
+            ])
+          );
+        }
+      }
+      setText(
+        'timer-live-note',
+        live.online_pct == null
+          ? 'Status da live ainda não registrado nos aumentos coletados.'
+          : live.online_pct + '% do tempo adicionado veio com a live online.' +
+            (live.unknown_status_granted_seconds
+              ? ' (' + formatTimerDuration(live.unknown_status_granted_seconds) + ' sem status registrado)'
+              : '')
+      );
+    }
+
+    function renderChatSync(data) {
+      const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+      };
+      const panic = (data || {}).panic || {};
+      setText('timer-panic-time', panic.panic_seconds == null ? '—' : formatTimerDuration(panic.panic_seconds));
+      setText('timer-panic-rate', panic.avg_msgs_per_min == null ? '—' : String(panic.avg_msgs_per_min));
+      setText(
+        'timer-panic-delta',
+        panic.delta_pct == null ? '—' : (panic.delta_pct > 0 ? '+' : '') + panic.delta_pct + '%'
+      );
+      const topEl = document.getElementById('timer-panic-top');
+      if (topEl) {
+        topEl.textContent = '';
+        const rows = Array.isArray(panic.top_moments) ? panic.top_moments : [];
+        if (!rows.length) {
           const empty = document.createElement('div');
           empty.className = 'empty-state';
-          empty.textContent = '—';
-          recentEl.appendChild(empty);
+          empty.textContent = 'Nenhum momento de pânico ainda.';
+          topEl.appendChild(empty);
         } else {
-          items.forEach((it) => {
+          rows.forEach((m) => {
             const row = document.createElement('div');
             row.className = 'active-chatter';
-            const at = it.at ? new Date(it.at) : null;
-            const dd = at
-              ? String(at.getDate()).padStart(2, '0') + '/' +
-                String(at.getMonth() + 1).padStart(2, '0') + ' ' +
-                String(at.getHours()).padStart(2, '0') + ':' +
-                String(at.getMinutes()).padStart(2, '0')
-              : '—';
-            const approx = (it.precision_seconds || 0) > 300 ? '~' : '';
-            row.textContent = dd + ' — ' + approx + formatPlusHms(it.granted_seconds);
-            recentEl.appendChild(row);
+            row.textContent =
+              new Date(m.at).toLocaleString('pt-BR') + ' — ' +
+              formatTimerDuration(m.remaining_seconds) + ' restantes · ' + m.msgs + ' msgs';
+            row.setAttribute(
+              'data-tip',
+              'Momento de pânico: timer abaixo de 30 min, com ' +
+                m.msgs + ' mensagens nesse intervalo. Um dos picos mais agitados do chat.'
+            );
+            topEl.appendChild(row);
           });
         }
+      }
+      const emoteEl = document.getElementById('timer-reactive-emotes');
+      if (emoteEl) {
+        emoteEl.textContent = '';
+        const rows = Array.isArray(data && data.reactive_emotes) ? data.reactive_emotes : [];
+        if (!rows.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.textContent = 'Sem aumentos suficientes ainda.';
+          emoteEl.appendChild(empty);
+        } else {
+          rows.forEach((e, idx) => {
+            const row = document.createElement('div');
+            row.className = 'leaderboard-entry timer-reactive-row';
+            row.setAttribute(
+              'data-tip',
+              e.lift == null
+                ? (e.emote_name + ': ' + e.after_per_min + '/min nos 5 min após aumentos (sem baseline suficiente pra comparar).')
+                : (e.emote_name + ': ' + e.after_per_min + '/min após aumentos — ' +
+                  e.lift + '× o ritmo normal do período.')
+            );
+
+            const rank = document.createElement('span');
+            rank.className = 'rank';
+            rank.textContent = '#' + (idx + 1);
+
+            const name = document.createElement('span');
+            name.className = 'entry-name';
+
+            const emoteId = e.emote_id || null;
+            let cachedUrl = e.emote_name ? sevenTVEmotes.get(e.emote_name) : null;
+            if (!cachedUrl && e.emote_name) {
+              // Case-insensitive fallback (7TV map keys are exact names).
+              const needle = String(e.emote_name).toLowerCase();
+              for (const [k, url] of sevenTVEmotes.entries()) {
+                if (String(k).toLowerCase() === needle) {
+                  cachedUrl = url;
+                  break;
+                }
+              }
+            }
+            const imgUrl = emoteId
+              ? ('https://cdn.7tv.app/emote/' + emoteId + '/1x.webp')
+              : cachedUrl;
+            if (imgUrl) {
+              const img = document.createElement('img');
+              img.src = imgUrl;
+              img.alt = e.emote_name || '';
+              img.width = 20;
+              img.height = 20;
+              img.loading = 'lazy';
+              img.decoding = 'async';
+              img.referrerPolicy = 'no-referrer';
+              img.style.flexShrink = '0';
+              img.onerror = function () { this.remove(); };
+              name.appendChild(img);
+            }
+
+            const nameText = document.createElement('span');
+            nameText.className = 'name-text';
+            nameText.textContent = e.emote_name || '—';
+            name.appendChild(nameText);
+
+            const val = document.createElement('span');
+            val.className = 'entry-count';
+            val.textContent = e.after_per_min + '/min (' + (e.lift == null ? '—' : 'x' + e.lift) + ')';
+
+            row.appendChild(rank);
+            row.appendChild(name);
+            row.appendChild(val);
+            emoteEl.appendChild(row);
+          });
+        }
+      }
+    }
+
+    async function loadChatSync() {
+      if (chatSyncLoaded) return;
+      chatSyncLoaded = true;
+      try {
+        const res = await fetch(API_BASE + '/subathon/chat-sync');
+        if (!res.ok) throw new Error('chat-sync ' + res.status);
+        renderChatSync(await res.json());
+      } catch (err) {
+        console.error('chat-sync load failed', err);
+        chatSyncLoaded = false;
       }
     }
 
@@ -522,6 +858,8 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       try {
         const data = await fetchTimerSection();
         renderTimerSection(data);
+        if (force) chatSyncLoaded = false;
+        await loadChatSync();
       } catch (err) {
         console.error('Timer section load failed', err);
         timerSectionLoaded = false;
@@ -1422,6 +1760,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       emoteRankingCache = null;
       smokeTimeLoaded = false;
       timerSectionLoaded = false;
+      chatSyncLoaded = false;
       ranqueadaSectionLoaded = false;
       folhinhaSectionLoaded = false;
       compararSectionLoaded = false;
@@ -1488,6 +1827,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
           emoteRankingCache = null;
           smokeTimeLoaded = false;
           timerSectionLoaded = false;
+          chatSyncLoaded = false;
           ranqueadaSectionLoaded = false;
           folhinhaSectionLoaded = false;
           compararSectionLoaded = false;
