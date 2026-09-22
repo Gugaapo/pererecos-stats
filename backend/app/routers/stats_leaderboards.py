@@ -14,10 +14,12 @@ from app.models.schemas.leaderboards import FolhinhaOverview
 from app.services.stats_service import (
     get_leaderboard, get_rising_stars, get_hour_leaders,
     get_top_writers, get_active_chatters,
-    get_chat_activity_today, get_overall_hourly_activity,
-    get_unique_chatters_by_hour,
     get_pererecoes_leaderboard, get_duas_caras_leaderboard,
     get_folhinha_commands_cached, get_random_message_with_context,
+)
+from app.services.chat_activity import (
+    get_chat_activity_today, get_overall_hourly_activity,
+    get_unique_chatters_by_hour,
 )
 from app.services.stats_aggregates import get_named_daily_leaderboard
 from app.services.smoke_service import get_smoke_time_stats

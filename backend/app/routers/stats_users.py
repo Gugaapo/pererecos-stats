@@ -10,11 +10,12 @@ from app.models.schemas import (
     UserFolhinhaOnlyResponse, UserFolhinhaStats,
 )
 from app.services.stats_service import (
-    get_user_stats, search_users, get_user_comparison,
+    get_user_stats, search_users,
     get_user_core, get_user_activity, get_user_rankings_section,
     get_user_social, get_user_emotes_section, get_user_recent, get_user_smoke_section,
     get_username_history, resolve_username,
 )
+from app.services.users.compare import get_user_comparison
 from app.services.folhinha.user_stats import get_user_folhinha_stats
 from .stats_common import USERNAME_PATTERN, PLATFORM_PATTERN, PERIOD_PATTERN, DATE_PATTERN
 
