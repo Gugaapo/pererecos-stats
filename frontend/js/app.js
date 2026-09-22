@@ -1,7 +1,7 @@
 const API_BASE = '/pererecos-stats-subathon/api/v1';
     const BASE_PATH = '/pererecos-stats-subathon';
     const DEFAULT_TITLE = 'Pererecos Stats Subathon';
-    const RESERVED_SECTIONS = new Set(['emotes', 'roda', 'ranqueada', 'comparar', 'folhinha']);
+    const RESERVED_SECTIONS = new Set(['emotes', 'roda', 'ranqueada', 'comparar', 'folhinha', 'timer']);
     const SMOKE_TIME_EMOTE_ID = '01FEHRN6PR000AEZ0QNPT4F4MF';
 
     let currentUsername = '';
@@ -9,7 +9,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
     let currentPlatform = 'all';
     let currentUserPlatform = null;
     let currentTab = 'top';
-    let currentSection = 'home'; // 'home' | 'emotes' | 'emotes-condensadas' | 'roda' | 'ranqueada'
+    let currentSection = 'home'; // 'home' | 'emotes' | 'roda' | 'ranqueada' | 'timer' | …
     let refreshInterval = null;
     let searchTimeout = null;
     let selectedAutocompleteIndex = -1;
@@ -17,6 +17,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
     let emotesSectionLoaded = false;
     let emotesCondensadasLoaded = false;
     let smokeTimeLoaded = false;
+    let timerSectionLoaded = false;
     let ranqueadaSectionLoaded = false;
     let folhinhaSectionLoaded = false;
     let compararSectionLoaded = false;
@@ -100,7 +101,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
 
     let customStartDate = null;
     let customEndDate = null;
-    const COLLECTION_START = '2026-09-01';
+    const COLLECTION_START = '2026-09-06';
 
     function periodQueryParams(extra = {}) {
       const params = { ...extra };
@@ -193,7 +194,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       if (currentPeriod === 'custom' && customStartDate && customEndDate) {
         return formatBRDate(customStartDate) + ' – ' + formatBRDate(customEndDate);
       }
-      return 'desde 01/09/2026';
+      return 'desde 06/09/2026';
     }
 
     function updatePeriodLabels() {
@@ -277,6 +278,258 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       if (smokeTimeLoaded && !force) return;
       smokeTimeLoaded = true;
       fetchSmokeTime();
+    }
+
+    let timerSectionRefreshTimer = null;
+
+    function formatTimerDuration(seconds) {
+      const s = Math.max(0, Math.floor(Number(seconds) || 0));
+      const days = Math.floor(s / 86400);
+      const hours = Math.floor((s % 86400) / 3600);
+      const mins = Math.floor((s % 3600) / 60);
+      if (days > 0) return days + 'd ' + hours + 'h ' + mins + 'min';
+      if (hours > 0) return hours + 'h ' + mins + 'min';
+      return mins + 'min ' + (s % 60) + 's';
+    }
+
+    function formatPlusHms(seconds) {
+      const s = Math.max(0, Math.floor(Number(seconds) || 0));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return '+' + h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+    }
+
+    function formatBrlMinor(minor) {
+      const n = Math.max(0, Math.floor(Number(minor) || 0));
+      return 'R$ ' + (n / 100).toFixed(2).replace('.', ',');
+    }
+
+    function renderTimerBarChart(container, labelsEl, values, labelFn) {
+      if (!container) return;
+      container.textContent = '';
+      if (labelsEl) labelsEl.textContent = '';
+      const max = Math.max(1, ...values.map((v) => Math.max(0, v)));
+      values.forEach((v, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'bar-wrapper';
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        const ratio = Math.max(0, v) / max;
+        bar.style.height = Math.max(2, Math.sqrt(ratio) * 100) + '%';
+        bar.title = labelFn(i, v);
+        wrap.appendChild(bar);
+        container.appendChild(wrap);
+        if (labelsEl) {
+          const lab = document.createElement('div');
+          lab.className = 'chart-label';
+          lab.textContent = labelFn(i, v, true);
+          labelsEl.appendChild(lab);
+        }
+      });
+    }
+
+    function renderTimerRankedList(el, rows, valueFn) {
+      if (!el) return;
+      el.textContent = '';
+      if (!rows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = '—';
+        el.appendChild(empty);
+        return;
+      }
+      rows.forEach((row, idx) => {
+        const div = document.createElement('div');
+        div.className = 'active-chatter';
+        const rank = document.createElement('span');
+        rank.className = 'active-chatter-rank';
+        rank.textContent = String(idx + 1);
+        const name = document.createElement('span');
+        name.className = 'active-chatter-name';
+        name.textContent = row.date || '—';
+        const val = document.createElement('span');
+        val.className = 'active-chatter-count';
+        val.textContent = valueFn(row);
+        div.appendChild(rank);
+        div.appendChild(name);
+        div.appendChild(val);
+        el.appendChild(div);
+      });
+    }
+
+    async function fetchTimerSection() {
+      // Plain fetch — do NOT use apiUrl() (that helper appends platform/period).
+      const paths = [
+        '/subathon/overview',
+        '/subathon/daily?days=30',
+        '/subathon/hourly',
+        '/subathon/increases?limit=25',
+        '/subathon/contributions',
+        '/subathon/rules',
+        '/subathon/timer',
+      ];
+      const results = await Promise.all(
+        paths.map((p) => fetch(API_BASE + p).then((r) => {
+          if (!r.ok) throw new Error(p + ' ' + r.status);
+          return r.json();
+        }))
+      );
+      return {
+        overview: results[0],
+        daily: results[1],
+        hourly: results[2],
+        increases: results[3],
+        contributions: results[4],
+        rules: results[5],
+        timer: results[6],
+      };
+    }
+
+    function renderTimerSection(data) {
+      const emptyEl = document.getElementById('timer-empty');
+      const daysTracked = Number(data.overview?.days_tracked || 0);
+      if (emptyEl) emptyEl.style.display = daysTracked === 0 ? '' : 'none';
+
+      const staleNote = document.getElementById('timer-stale');
+      if (staleNote) {
+        staleNote.style.display = data.timer?.stale ? '' : 'none';
+        if (data.timer?.stale && data.timer?.fetched_at) {
+          const t = new Date(data.timer.fetched_at);
+          staleNote.textContent = 'dados de ' +
+            String(t.getHours()).padStart(2, '0') + ':' +
+            String(t.getMinutes()).padStart(2, '0');
+        }
+      }
+
+      const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+      };
+      setText('timer-now-remaining', formatTimerDuration(data.timer?.remaining_seconds));
+      setText('timer-now-state', data.timer?.mode || data.timer?.state || '—');
+      setText(
+        'timer-now-ends-at',
+        data.timer?.ends_at ? new Date(data.timer.ends_at).toLocaleString('pt-BR') : '—'
+      );
+
+      const ov = data.overview || {};
+      setText('timer-hl-total', formatTimerDuration(ov.total_added_seconds));
+      setText(
+        'timer-hl-biggest-day',
+        ov.biggest_day
+          ? (ov.biggest_day.date || '') + ' · ' + formatTimerDuration(ov.biggest_day.added_seconds)
+          : '—'
+      );
+      setText(
+        'timer-hl-static-day',
+        ov.most_static_day
+          ? (ov.most_static_day.date || '') + ' · ' + formatTimerDuration(ov.most_static_day.added_seconds)
+          : '—'
+      );
+      setText('timer-hl-streak', String(ov.current_active_streak || 0) + ' / max ' + (ov.longest_active_streak || 0));
+      setText(
+        'timer-hl-gap',
+        ov.longest_gap ? formatTimerDuration(ov.longest_gap.seconds) : '—'
+      );
+      setText('timer-hl-paused', formatTimerDuration(ov.paused_total_seconds));
+      const contrib = data.contributions || {};
+      setText('timer-hl-txns', String(contrib.txn_count || 0));
+      setText('timer-money-total', formatBrlMinor(contrib.money_minor_units));
+      setText('timer-money-count', String(contrib.txn_count || 0));
+      setText('timer-money-biggest', formatBrlMinor(contrib.biggest_txn));
+      setText('timer-money-avg', formatBrlMinor(contrib.avg_txn_minor_units));
+      setText(
+        'timer-money-per-hour',
+        contrib.implied_brl_per_live_hour != null
+          ? formatBrlMinor(contrib.implied_brl_per_live_hour)
+          : '—'
+      );
+
+      const daily = Array.isArray(data.daily) ? data.daily : [];
+      renderTimerBarChart(
+        document.getElementById('timer-daily-chart'),
+        document.getElementById('timer-daily-labels'),
+        daily.map((d) => d.added_seconds || 0),
+        (i, v, short) => {
+          const d = daily[i];
+          if (!d) return '';
+          const dd = (d.date || '').slice(8, 10) + '/' + (d.date || '').slice(5, 7);
+          if (short) return dd;
+          return dd + ' — ' + formatPlusHms(v) + ' (' + (d.increase_count || 0) + ' aumentos)';
+        }
+      );
+
+      const byAdded = daily.slice().sort((a, b) => (b.added_seconds || 0) - (a.added_seconds || 0)).slice(0, 10);
+      const byStatic = daily.slice().sort((a, b) => (a.added_seconds || 0) - (b.added_seconds || 0)).slice(0, 10);
+      renderTimerRankedList(document.getElementById('timer-top-days'), byAdded, (r) => formatPlusHms(r.added_seconds));
+      renderTimerRankedList(document.getElementById('timer-static-days'), byStatic, (r) => formatPlusHms(r.added_seconds));
+
+      const hourly = Array.isArray(data.hourly) ? data.hourly : [];
+      renderTimerBarChart(
+        document.getElementById('timer-hourly-chart'),
+        document.getElementById('timer-hourly-labels'),
+        hourly.map((h) => h.added_seconds || 0),
+        (i, v, short) => (short ? String(i) : (i + 'h — ' + formatPlusHms(v)))
+      );
+
+      const rulesEl = document.getElementById('timer-rules-table');
+      if (rulesEl) {
+        rulesEl.textContent = '';
+        const table = data.rules?.conversion_table || [];
+        if (!table.length) {
+          rulesEl.textContent = 'Regras ainda não disponíveis (Pixie).';
+        } else {
+          table.forEach((row) => {
+            const line = document.createElement('div');
+            line.textContent = (row.label || '') + ' → ' + (row.human || '');
+            rulesEl.appendChild(line);
+          });
+        }
+      }
+
+      const recentEl = document.getElementById('timer-recent-list');
+      if (recentEl) {
+        recentEl.textContent = '';
+        const items = data.increases?.items || [];
+        if (!items.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.textContent = '—';
+          recentEl.appendChild(empty);
+        } else {
+          items.forEach((it) => {
+            const row = document.createElement('div');
+            row.className = 'active-chatter';
+            const at = it.at ? new Date(it.at) : null;
+            const dd = at
+              ? String(at.getDate()).padStart(2, '0') + '/' +
+                String(at.getMonth() + 1).padStart(2, '0') + ' ' +
+                String(at.getHours()).padStart(2, '0') + ':' +
+                String(at.getMinutes()).padStart(2, '0')
+              : '—';
+            const approx = (it.precision_seconds || 0) > 300 ? '~' : '';
+            row.textContent = dd + ' — ' + approx + formatPlusHms(it.granted_seconds);
+            recentEl.appendChild(row);
+          });
+        }
+      }
+    }
+
+    async function loadTimerSection(force = false) {
+      if (timerSectionLoaded && !force) return;
+      timerSectionLoaded = true;
+      try {
+        const data = await fetchTimerSection();
+        renderTimerSection(data);
+      } catch (err) {
+        console.error('Timer section load failed', err);
+        timerSectionLoaded = false;
+      }
+      if (timerSectionRefreshTimer) clearInterval(timerSectionRefreshTimer);
+      timerSectionRefreshTimer = setInterval(() => {
+        if (currentSection === 'timer') loadTimerSection(true);
+      }, 5 * 60 * 1000);
     }
 
     async function loadRanqueadaSection(force = false) {
@@ -1158,7 +1411,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       } else if (currentRanqueadaBoardId) {
         ranqueadaBoardPage = 1;
         pushRanqueadaBoardURL(currentRanqueadaBoardId, 1);
-      } else if (['emotes', 'emotes-condensadas', 'roda', 'ranqueada', 'comparar', 'folhinha'].includes(currentSection)) {
+      } else if (['emotes', 'emotes-condensadas', 'roda', 'ranqueada', 'comparar', 'folhinha', 'timer'].includes(currentSection)) {
         pushSectionURL(currentSection);
       } else {
         pushHomeURL();
@@ -1168,6 +1421,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       emotesCondensadasLoaded = false;
       emoteRankingCache = null;
       smokeTimeLoaded = false;
+      timerSectionLoaded = false;
       ranqueadaSectionLoaded = false;
       folhinhaSectionLoaded = false;
       compararSectionLoaded = false;
@@ -1227,12 +1481,13 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
         } else if (currentRanqueadaBoardId) {
           ranqueadaBoardPage = 1;
           pushRanqueadaBoardURL(currentRanqueadaBoardId, 1);
-        } else if (['emotes', 'emotes-condensadas', 'roda', 'ranqueada', 'comparar', 'folhinha'].includes(currentSection)) {
+        } else if (['emotes', 'emotes-condensadas', 'roda', 'ranqueada', 'comparar', 'folhinha', 'timer'].includes(currentSection)) {
           pushSectionURL(currentSection);
           emotesSectionLoaded = false;
           emotesCondensadasLoaded = false;
           emoteRankingCache = null;
           smokeTimeLoaded = false;
+          timerSectionLoaded = false;
           ranqueadaSectionLoaded = false;
           folhinhaSectionLoaded = false;
           compararSectionLoaded = false;
@@ -1326,12 +1581,13 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
 
     function showSectionPanel(section) {
       if (section === 'emotes-condensadas') section = 'emotes';
-      const valid = ['emotes', 'roda', 'ranqueada', 'comparar', 'folhinha'];
+      const valid = ['emotes', 'roda', 'ranqueada', 'comparar', 'folhinha', 'timer'];
       currentSection = valid.includes(section) ? section : 'home';
       const homeEl = document.getElementById('section-home');
       const emotesEl = document.getElementById('section-emotes');
       const condensadasEl = document.getElementById('section-emotes-condensadas');
       const rodaEl = document.getElementById('section-roda');
+      const timerEl = document.getElementById('section-timer');
       const ranqueadaEl = document.getElementById('section-ranqueada');
       const compararEl = document.getElementById('section-comparar');
       const folhinhaEl = document.getElementById('section-folhinha');
@@ -1339,6 +1595,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       if (emotesEl) emotesEl.classList.toggle('hidden', currentSection !== 'emotes');
       if (condensadasEl) condensadasEl.classList.add('hidden');
       if (rodaEl) rodaEl.classList.toggle('hidden', currentSection !== 'roda');
+      if (timerEl) timerEl.classList.toggle('hidden', currentSection !== 'timer');
       if (ranqueadaEl) ranqueadaEl.classList.toggle('hidden', currentSection !== 'ranqueada');
       if (compararEl) compararEl.classList.toggle('hidden', currentSection !== 'comparar');
       if (folhinhaEl) folhinhaEl.classList.toggle('hidden', currentSection !== 'folhinha');
@@ -1346,6 +1603,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       if (currentSection === 'home') document.title = DEFAULT_TITLE;
       else if (currentSection === 'emotes') document.title = 'Emotes - Pererecos Stats';
       else if (currentSection === 'roda') document.title = 'Roda - Pererecos Stats';
+      else if (currentSection === 'timer') document.title = 'Timer - Pererecos Stats';
       else if (currentSection === 'ranqueada') document.title = 'Ranqueada - Pererecos Stats';
       else if (currentSection === 'comparar') document.title = 'Comparar - Pererecos Stats';
       else if (currentSection === 'folhinha') document.title = 'Folhinha - Pererecos Stats';
@@ -1364,6 +1622,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
       refreshSidebarContext(section === 'home' ? 'home' : section);
       if (section === 'emotes') loadEmotesSection();
       else if (section === 'roda') loadRodaSection();
+      else if (section === 'timer') loadTimerSection();
       else if (section === 'ranqueada') loadRanqueadaSection();
       else if (section === 'folhinha') loadFolhinhaSection();
       else if (section === 'comparar') loadCompararSection();
@@ -4328,15 +4587,18 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
     updateHomeNavIcon();
     setInterval(updateHomeNavIcon, 60 * 1000);
 
-    // Subathon dual timer: untilStart → remainingLive
+    // Subathon header timer: tick from ends_at + server_now clock offset
     (function initSubathonTimer() {
       const labelEl = document.getElementById('subathon-timer-label');
       const valueEl = document.getElementById('subathon-timer-value');
       const wrapEl = document.getElementById('subathon-timer');
       if (!labelEl || !valueEl || !wrapEl) return;
 
-      let remainingSeconds = null;
+      let endsAtMs = null;
+      let offsetMs = 0;
       let mode = 'untilStart';
+      let stale = false;
+      let remainingFallback = null;
       let tickTimer = null;
       let syncTimer = null;
 
@@ -4350,10 +4612,7 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
           String(hours).padStart(2, '0') + ':' +
           String(mins).padStart(2, '0') + ':' +
           String(secs).padStart(2, '0');
-        if (mode === 'untilStart' && days > 0) {
-          return days + 'd ' + hms;
-        }
-        // Unbounded hours for remaining live (may exceed 24h)
+        if (days > 0) return days + 'd ' + hms;
         const totalHours = Math.floor(s / 3600);
         return (
           String(totalHours) + ':' +
@@ -4362,34 +4621,59 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
         );
       }
 
-      function render() {
-        if (remainingSeconds == null) {
-          valueEl.textContent = '--:--:--';
-          return;
+      function remainingNow() {
+        if (endsAtMs != null) {
+          return Math.max(0, Math.floor((endsAtMs - (Date.now() + offsetMs)) / 1000));
         }
+        return remainingFallback;
+      }
+
+      function render() {
+        wrapEl.dataset.mode = mode;
+        wrapEl.classList.toggle('ended', mode === 'ended');
+        wrapEl.dataset.stale = stale ? 'true' : 'false';
+
         if (mode === 'untilStart') {
           labelEl.textContent = 'Subathon começa em';
+        } else if (mode === 'paused') {
+          labelEl.textContent = 'Subathon pausada';
+        } else if (mode === 'locked') {
+          labelEl.textContent = 'Subathon bloqueada';
+        } else if (mode === 'ended') {
+          labelEl.textContent = 'Subathon encerrada';
+        } else if (mode === 'unavailable') {
+          labelEl.textContent = 'Timer indisponível';
         } else {
           labelEl.textContent = 'Horas de live restantes';
         }
-        if (remainingSeconds <= 0) {
-          if (mode === 'remainingLive') {
-            valueEl.textContent = '0:00:00';
-            labelEl.textContent = 'Subathon encerrada';
-            wrapEl.classList.add('ended');
-          } else {
-            labelEl.textContent = 'Aguardando a live';
-            valueEl.textContent = '—';
-          }
+
+        const rem = remainingNow();
+        if (rem == null) {
+          valueEl.textContent = '--:--:--';
           return;
         }
-        wrapEl.classList.remove('ended');
-        valueEl.textContent = formatCountdown(remainingSeconds);
+        if (mode === 'ended' || rem <= 0 && mode !== 'untilStart') {
+          valueEl.textContent = '0:00:00';
+          wrapEl.classList.add('ended');
+          return;
+        }
+        if (mode === 'untilStart' && rem <= 0) {
+          labelEl.textContent = 'Aguardando a live';
+          valueEl.textContent = '—';
+          return;
+        }
+        let text = formatCountdown(rem);
+        if (stale) {
+          text += ' · desatualizado';
+        }
+        valueEl.textContent = text;
       }
 
       function tick() {
-        if (remainingSeconds == null) return;
-        if (remainingSeconds > 0) remainingSeconds -= 1;
+        if (mode === 'paused' || mode === 'locked') {
+          render();
+          return;
+        }
         render();
       }
 
@@ -4399,16 +4683,28 @@ const API_BASE = '/pererecos-stats-subathon/api/v1';
           if (!res.ok) throw new Error('timer http ' + res.status);
           const data = await res.json();
           mode = data.mode || 'untilStart';
-          remainingSeconds = Math.max(0, Number(data.remaining_seconds) || 0);
+          stale = !!data.stale;
+          if (data.server_now) {
+            offsetMs = Date.parse(data.server_now) - Date.now();
+          }
+          if (data.ends_at) {
+            endsAtMs = Date.parse(data.ends_at);
+            remainingFallback = null;
+          } else {
+            endsAtMs = null;
+            remainingFallback = Math.max(0, Number(data.remaining_seconds) || 0);
+          }
           render();
         } catch (err) {
           console.error('Subathon timer sync failed', err);
+          // Keep ticking from last known ends_at rather than blanking out.
+          render();
         }
       }
 
       syncFromApi();
       tickTimer = setInterval(tick, 1000);
-      syncTimer = setInterval(syncFromApi, 30000);
+      syncTimer = setInterval(syncFromApi, 20000);
     })();
 
     // Initial load from URL (home or deep-linked user)

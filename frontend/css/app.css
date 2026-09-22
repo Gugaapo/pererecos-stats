@@ -66,6 +66,22 @@
       color: var(--text-muted);
     }
 
+    .subathon-timer[data-mode="paused"] .subathon-timer-value {
+      color: var(--text-muted);
+    }
+
+    .subathon-timer[data-stale="true"] .subathon-timer-value::after {
+      content: '';
+      display: inline-block;
+      width: 0.45rem;
+      height: 0.45rem;
+      margin-left: 0.45rem;
+      border-radius: 50%;
+      background: var(--accent-lime);
+      opacity: 0.55;
+      vertical-align: middle;
+    }
+
     .title-row {
       display: flex;
       align-items: center;

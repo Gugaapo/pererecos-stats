@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pererecos Stats Subathon — Chat do omeiaum</title>
-  <meta name="description" content="Estatísticas do chat do Subathon do omeiaum (Twitch) e meiaum (Kick). Dados desde 01/09/2026.">
+  <meta name="description" content="Estatísticas do chat do Subathon do omeiaum (Twitch) e meiaum (Kick). Dados desde 06/09/2026.">
   <meta property="og:title" content="Pererecos Stats Subathon — Chat do omeiaum">
   <meta property="og:description" content="Estatísticas do chat do Subathon: emotes, ranqueadas, Roda e rankings da comunidade.">
   <meta property="og:type" content="website">
@@ -59,13 +59,13 @@
             <button class="filter-btn" data-period="day" title="Últimas 24 horas">1 dia</button>
             <button class="filter-btn" data-period="week" title="Últimos 7 dias">7 dias</button>
             <button class="filter-btn" data-period="month" title="Últimos 30 dias">30 dias</button>
-            <button class="filter-btn active" data-period="all" title="Desde o início da coleta">01/09/2026 até hoje</button>
+            <button class="filter-btn active" data-period="all" title="Desde o início da coleta">06/09/2026 até hoje</button>
             <button class="filter-btn" data-period="custom" id="custom-period-btn" type="button" title="Escolher intervalo de datas">Data qualquer</button>
           </div>
           <div class="custom-date-row" id="custom-date-row">
-            <input type="date" id="custom-start-date" min="2026-09-01" aria-label="Data inicial">
+            <input type="date" id="custom-start-date" min="2026-09-06" aria-label="Data inicial">
             <span style="color: var(--text-muted); font-size: 0.85rem;">até</span>
-            <input type="date" id="custom-end-date" min="2026-09-01" aria-label="Data final">
+            <input type="date" id="custom-end-date" min="2026-09-06" aria-label="Data final">
             <button class="filter-btn" type="button" id="custom-date-apply" title="Aplicar intervalo customizado">Aplicar</button>
           </div>
 
@@ -84,6 +84,13 @@
                  alt="" class="nav-icon" id="nav-home-icon" width="24" height="24">
             <span class="stats-nav-label">Inicio</span>
             <span class="stats-nav-desc" aria-hidden="true">Página inicial... nada de mais... dá pra ver quem tá online</span>
+          </button>
+          <button type="button" class="stats-nav-item" data-section="timer" id="nav-timer"
+            title="Estatísticas do timer do Subathon" aria-label="Timer">
+            <img src="https://cdn.7tv.app/emote/01FEHRN6PR000AEZ0QNPT4F4MF/4x.webp"
+                 alt="" class="nav-icon nav-icon-smoketime" width="24" height="24">
+            <span class="stats-nav-label">Timer</span>
+            <span class="stats-nav-desc" aria-hidden="true">Quanto tempo o chat já arrancou do MeiaUm</span>
           </button>
           <button type="button" class="stats-nav-item" data-section="emotes" id="nav-emotes" title="Ranking e detalhes de emotes" aria-label="Emotes">
             <img src="https://cdn.7tv.app/emote/01F6WQ7VC800040YPQTKMJNRWD/4x.webp"
@@ -588,6 +595,121 @@
               <div class="tragadores-today" id="tragadores-today" style="display:none;"></div>
             </div>
           </div>
+
+          <div class="section-panel hidden" id="section-timer">
+            <div class="card">
+              <div class="section-label">Agora</div>
+              <div class="section-note" id="timer-stale" style="display:none;">Dados desatualizados</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Restante</span>
+                  <span class="highlight-value" id="timer-now-remaining">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Estado</span>
+                  <span class="highlight-value" id="timer-now-state">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Termina em</span>
+                  <span class="highlight-value" id="timer-now-ends-at">—</span>
+                </div>
+              </div>
+              <div class="section-label" style="margin-top:1rem;">Quanto vale cada coisa</div>
+              <div id="timer-rules-table" class="section-note">Regras ainda não disponíveis (Pixie).</div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label">Destaques</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Total adicionado</span>
+                  <span class="highlight-value" id="timer-hl-total">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Maior dia</span>
+                  <span class="highlight-value" id="timer-hl-biggest-day">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Dia mais parado</span>
+                  <span class="highlight-value" id="timer-hl-static-day">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Sequência</span>
+                  <span class="highlight-value" id="timer-hl-streak">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Maior gap</span>
+                  <span class="highlight-value" id="timer-hl-gap">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Pausado</span>
+                  <span class="highlight-value" id="timer-hl-paused">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Doações (txns)</span>
+                  <span class="highlight-value" id="timer-hl-txns">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label">Aumento por dia</div>
+              <div class="chart-container" id="timer-daily-chart" style="height:160px;"></div>
+              <div class="chart-labels" id="timer-daily-labels"></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label">Dias que mais aumentaram</div>
+              <div id="timer-top-days"><div class="empty-state">—</div></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label">Dias mais parados</div>
+              <div id="timer-static-days"><div class="empty-state">—</div></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label">Por hora (BRT)</div>
+              <div class="chart-container" id="timer-hourly-chart" style="height:120px;"></div>
+              <div class="chart-labels" id="timer-hourly-labels"></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label">Contribuições</div>
+              <div class="section-note">Valores anônimos — o webhook não traz identidade do doador.</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Total</span>
+                  <span class="highlight-value" id="timer-money-total">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Transações</span>
+                  <span class="highlight-value" id="timer-money-count">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Maior</span>
+                  <span class="highlight-value" id="timer-money-biggest">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">Média</span>
+                  <span class="highlight-value" id="timer-money-avg">—</span>
+                </div>
+                <div class="tragadores-highlight-item">
+                  <span class="highlight-label">R$/hora live</span>
+                  <span class="highlight-value" id="timer-money-per-hour">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label">Últimos aumentos</div>
+              <div id="timer-recent-list"><div class="empty-state">—</div></div>
+            </div>
+
+            <div class="empty-state" id="timer-empty" style="display:none;">
+              Ainda sem histórico do timer. As estatísticas começam no dia do deploy — não há dados anteriores.
+            </div>
+          </div>
         </section>
 
         <section class="stats-section" id="ranqueada-board-view">
@@ -878,9 +1000,9 @@
       <div class="form-group">
         <label class="form-label">Período</label>
         <div class="export-date-row">
-          <input type="date" id="export-start-date" min="2026-09-01" aria-label="Data inicial">
+          <input type="date" id="export-start-date" min="2026-09-06" aria-label="Data inicial">
           <span style="color: var(--text-muted); font-size: 0.85rem;">até</span>
-          <input type="date" id="export-end-date" min="2026-09-01" aria-label="Data final">
+          <input type="date" id="export-end-date" min="2026-09-06" aria-label="Data final">
         </div>
       </div>
       <button type="button" class="form-submit" id="export-download-btn">Baixar CSV</button>
