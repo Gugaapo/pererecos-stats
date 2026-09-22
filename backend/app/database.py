@@ -177,6 +177,9 @@ class DatabaseManager:
         await self.db.marathon_txn.create_index([("txn_id", 1)], unique=True)
         await self.db.marathon_txn.create_index([("confirmed_at", -1)])
         await self.db.pixie_webhook_events.create_index([("webhook_id", 1)], unique=True)
+        await self.db.marathon_milestones.create_index(
+            [("threshold_seconds", 1), ("direction", 1)], unique=True
+        )
 
         logger.info("Database indexes created")
 
@@ -264,6 +267,18 @@ class DatabaseManager:
     @property
     def marathon_txn(self):
         return self.db.marathon_txn
+
+    @property
+    def marathon_records(self):
+        return self.db.marathon_records
+
+    @property
+    def marathon_milestones(self):
+        return self.db.marathon_milestones
+
+    @property
+    def marathon_health(self):
+        return self.db.marathon_health
 
     @property
     def pixie_webhook_events(self):

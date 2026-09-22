@@ -41,7 +41,14 @@ async def _refresh_cache_from_feed() -> dict | None:
         from app.services.timer_client import client as timer_client
 
         feed = await timer_client.get_timer()
-        await record_observation(feed.marathon, source="request_refresh", heartbeat=False)
+        await record_observation(
+            feed.marathon,
+            source="request_refresh",
+            heartbeat=False,
+            status=feed.status,
+            feed_seconds=feed.feed_seconds,
+            feed_value=feed.feed_value,
+        )
         creator = (feed.payload or {}).get("creator_id")
         if creator:
             await db.marathon_state.update_one(

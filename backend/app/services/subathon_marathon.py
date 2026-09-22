@@ -16,6 +16,12 @@ from pymongo.errors import DuplicateKeyError
 
 from app.config import get_settings
 from app.database import db
+from app.services.subathon_insights import (
+    HOURS_ABOVE_THRESHOLD_SECONDS,
+    feed_cross_check,
+    new_crossings,
+    records_update,
+)
 from app.services.subathon_math import (
     Marathon,
     brt_date,
@@ -28,6 +34,51 @@ from app.services.timer_client import TimerFeedError, client as timer_client
 logger = logging.getLogger(__name__)
 
 CURRENT_ID = "current"
+
+
+def _observation_remaining(m: Marathon) -> int | None:
+    """Remaining at observation time (frozen while paused)."""
+    if m.ends_at is None or m.observed_at is None:
+        return None
+    anchor = m.paused_at if (m.paused and m.paused_at) else m.observed_at
+    ends = m.ends_at
+    if ends.tzinfo is None:
+        ends = ends.replace(tzinfo=timezone.utc)
+    if anchor.tzinfo is None:
+        anchor = anchor.replace(tzinfo=timezone.utc)
+    return max(0, int((ends - anchor).total_seconds()))
+
+
+async def _bump_health(*, ok: bool, gap_seconds: int | None = None) -> None:
+    """Per-BRT-day poller health counters (reset when the BRT day rolls)."""
+    now = datetime.now(timezone.utc)
+    day = brt_date(now)
+    doc = await db.marathon_health.find_one({"_id": CURRENT_ID}) or {}
+    polls_ok = int(doc.get("polls_ok") or 0)
+    polls_fail = int(doc.get("polls_fail") or 0)
+    max_gap = int(doc.get("max_gap_seconds") or 0)
+    if doc.get("day") != day:
+        polls_ok = 0
+        polls_fail = 0
+        max_gap = 0
+    update: dict[str, Any] = {
+        "day": day,
+        "polls_ok": polls_ok,
+        "polls_fail": polls_fail,
+        "max_gap_seconds": max_gap,
+    }
+    if ok:
+        last_gap = max(0, int(gap_seconds or 0))
+        update["polls_ok"] = polls_ok + 1
+        update["last_ok_at"] = now
+        update["last_gap_seconds"] = last_gap
+        update["max_gap_seconds"] = max(max_gap, last_gap)
+    else:
+        update["polls_fail"] = polls_fail + 1
+        update["last_fail_at"] = now
+    await db.marathon_health.update_one(
+        {"_id": CURRENT_ID}, {"$set": update}, upsert=True
+    )
 
 
 def _doc_to_marathon(doc: dict[str, Any]) -> Marathon | None:
@@ -125,12 +176,21 @@ async def _recompute_daily(day: str) -> None:
 
 
 async def record_observation(
-    m: Marathon, *, source: str, heartbeat: bool = False
+    m: Marathon,
+    *,
+    source: str,
+    heartbeat: bool = False,
+    status: str | None = None,
+    feed_seconds: int | None = None,
+    feed_value: str | None = None,
 ) -> dict:
     settings = get_settings()
     prev_doc = await load_cached()
     prev = _doc_to_marathon(prev_doc) if prev_doc else None
     now = m.observed_at
+    prev_remaining = _observation_remaining(prev) if prev else None
+    cur_remaining = _observation_remaining(m)
+    cross = feed_cross_check(feed_seconds, m.ends_at, m.observed_at)
 
     decision = {
         "kind": "none",
@@ -160,6 +220,7 @@ async def record_observation(
                 "source": source,
                 "precision_seconds": precision_seconds,
                 "brt_date": brt_date(now),
+                "status": status,
             }
         )
 
@@ -201,6 +262,47 @@ async def record_observation(
             upsert=True,
         )
 
+    # Records / milestones / hours-above accumulator (survive the 90d snapshot TTL)
+    rec_doc = await db.marathon_records.find_one({"_id": CURRENT_ID}) or {}
+    hours_above_7d = int(rec_doc.get("hours_above_7d_seconds") or 0)
+    updated_rec = records_update(rec_doc, cur_remaining, now)
+    updated_rec["hours_above_7d_seconds"] = hours_above_7d
+    updated_rec["_id"] = CURRENT_ID
+    await db.marathon_records.update_one(
+        {"_id": CURRENT_ID}, {"$set": updated_rec}, upsert=True
+    )
+    if (
+        prev_remaining is not None
+        and prev_remaining >= HOURS_ABOVE_THRESHOLD_SECONDS
+        and precision_seconds > 0
+    ):
+        await db.marathon_records.update_one(
+            {"_id": CURRENT_ID},
+            {"$inc": {"hours_above_7d_seconds": min(precision_seconds, 300)}},
+            upsert=True,
+        )
+
+    for crossing in new_crossings(prev_remaining, cur_remaining):
+        await db.marathon_milestones.update_one(
+            {
+                "threshold_seconds": crossing["threshold_seconds"],
+                "direction": crossing["direction"],
+            },
+            {
+                "$setOnInsert": {
+                    "threshold_seconds": crossing["threshold_seconds"],
+                    "direction": crossing["direction"],
+                    "label": crossing["label"],
+                    "at": now,
+                    "remaining_at_event": crossing["remaining_at_event"],
+                    "estimated": False,
+                }
+            },
+            upsert=True,
+        )
+
+    await _bump_health(ok=True, gap_seconds=precision_seconds)
+
     changed = (
         prev is None
         or prev.ends_at != m.ends_at
@@ -225,6 +327,9 @@ async def record_observation(
         "last_success_at": datetime.now(timezone.utc),
         "error_count": 0,
         "creator_id": None,
+        "status": status,
+        "feed_seconds": feed_seconds,
+        "cross_check_seconds": cross,
     }
     # Preserve rules from previous if new observation has empty rules
     if not m.rules and prev_doc and prev_doc.get("rules"):
@@ -248,6 +353,10 @@ async def record_observation(
                 "source": source,
                 "raw_delta_seconds": int(decision["raw_delta_seconds"]),
                 "heartbeat": bool(heartbeat and not changed),
+                "status": status,
+                "feed_seconds": feed_seconds,
+                "feed_value": feed_value,
+                "cross_check_seconds": cross,
             }
         )
 
@@ -292,9 +401,15 @@ async def poll_forever(stop: asyncio.Event) -> None:
                 or (now - last_heartbeat).total_seconds() >= heartbeat_s
             )
             changed = key != last_snapshot_key
+            first_after_start = last_snapshot_key is None
             if changed or need_heartbeat:
                 await record_observation(
-                    m, source="poll", heartbeat=need_heartbeat and not changed
+                    m,
+                    source="poll",
+                    heartbeat=(need_heartbeat and not changed) or first_after_start,
+                    status=feed.status,
+                    feed_seconds=feed.feed_seconds,
+                    feed_value=feed.feed_value,
                 )
                 if creator:
                     await db.marathon_state.update_one(
@@ -319,11 +434,14 @@ async def poll_forever(stop: asyncio.Event) -> None:
                             "last_success_at": now,
                             "fetched_at": now,
                             "error_count": 0,
+                            "status": feed.status,
+                            "feed_seconds": feed.feed_seconds,
                             **({"creator_id": creator} if creator else {}),
                         }
                     },
                     upsert=True,
                 )
+                await _bump_health(ok=True, gap_seconds=0)
             error_backoff = poll_s
         except TimerFeedError as exc:
             logger.warning("Marathon poll failed: %s", exc)
@@ -332,6 +450,7 @@ async def poll_forever(stop: asyncio.Event) -> None:
                 {"$inc": {"error_count": 1}},
                 upsert=True,
             )
+            await _bump_health(ok=False)
             error_backoff = min(poll_s * 10, max(poll_s, (exc.retry_after or error_backoff) * 1.5))
             error_backoff = error_backoff * (0.8 + random.random() * 0.4)
         except Exception:

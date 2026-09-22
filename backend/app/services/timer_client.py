@@ -34,6 +34,9 @@ class TimerFeedResponse:
     marathon: Marathon
     payload: dict[str, Any]
     fetched_at: datetime
+    status: str | None = None
+    feed_seconds: int | None = None
+    feed_value: str | None = None
 
 
 class TimerClient:
@@ -86,8 +89,22 @@ class TimerClient:
                     observed_at=observed,
                     rules={},  # rules come from Pixie when configured; not on this feed
                 )
+                feed_seconds_raw = payload.get("seconds")
+                try:
+                    feed_seconds = (
+                        int(feed_seconds_raw) if feed_seconds_raw is not None else None
+                    )
+                except (TypeError, ValueError):
+                    feed_seconds = None
+                feed_value = payload.get("value")
+                status = payload.get("status")
                 return TimerFeedResponse(
-                    marathon=marathon, payload=payload, fetched_at=fetched_at
+                    marathon=marathon,
+                    payload=payload,
+                    fetched_at=fetched_at,
+                    status=str(status) if status is not None else None,
+                    feed_seconds=feed_seconds,
+                    feed_value=str(feed_value) if feed_value is not None else None,
                 )
 
             detail = ""
