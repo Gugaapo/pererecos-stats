@@ -1,8 +1,8 @@
 """Gate chat/moderation ingest until the real subathon live starts.
 
-Calendar date is still 2026-09-01, but yesterday's stream ran past midnight BRT
-and must not count. Ingest latches on the first Twitch stream whose started_at
-is on/after SUBATHON_MIN_STREAM_START, then stays on across restreams.
+Countdown / date filters use SUBATHON_START. Ingest latches on the first Twitch
+stream whose started_at is on/after SUBATHON_MIN_STREAM_START, then stays on
+across restreams.
 
 Detection: EventSub stream.online (instant) + Helix /streams poll (fallback).
 """
@@ -20,8 +20,8 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 BRT = timezone(timedelta(hours=-3))
-# Date filters / export floor (not the ingest switch).
-COLLECTION_START = datetime(2026, 9, 1, 0, 0, 0, tzinfo=BRT)
+# Fallback if SUBATHON_START is missing/invalid (countdown + export floor).
+_DEFAULT_COLLECTION_START = datetime(2026, 9, 6, 15, 0, 0, tzinfo=BRT)
 HELIX = "https://api.twitch.tv/helix"
 HELIX_POLL_SECS = 5
 
@@ -43,10 +43,20 @@ def _parse_aware(value: str, fallback: datetime) -> datetime:
     return dt
 
 
+def collection_start() -> datetime:
+    """Public countdown / collection floor from SUBATHON_START."""
+    settings = get_settings()
+    return _parse_aware(settings.subathon_start, _DEFAULT_COLLECTION_START)
+
+
+# Back-compat for imports that expect a datetime constant (resolved at import).
+COLLECTION_START = _DEFAULT_COLLECTION_START
+
+
 def min_stream_started_at() -> datetime:
     settings = get_settings()
-    fallback = datetime(2026, 9, 1, 6, 0, 0, tzinfo=BRT)
-    return _parse_aware(settings.subathon_min_stream_start, fallback)
+    # Default: same instant as collection start (no early latch).
+    return _parse_aware(settings.subathon_min_stream_start, collection_start())
 
 
 def ingest_enabled(now: datetime | None = None) -> bool:

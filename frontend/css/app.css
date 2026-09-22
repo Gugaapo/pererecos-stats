@@ -33,6 +33,26 @@
       margin-bottom: 2rem;
     }
 
+    .timer-api-credit {
+      margin: 0 auto 0.55rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.02em;
+      color: color-mix(in srgb, var(--text-muted) 55%, transparent);
+      line-height: 1.35;
+      max-width: min(100%, 36rem);
+    }
+
+    .timer-api-credit a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 0.15em;
+      word-break: break-all;
+    }
+
+    .timer-api-credit a:hover {
+      color: var(--text-muted);
+    }
+
     .subathon-timer {
       display: inline-flex;
       flex-direction: column;

@@ -1,15 +1,19 @@
-"""Subathon header timer — served from Mongo cache only.
+"""Subathon header timer — served from Mongo cache.
 
-Never call the vinnytasso timer feed or Pixie from this module; the poller owns
-the upstream budget. Swap completed: remainingLive/placeholder → cached marathon.
+The poller owns the steady-state upstream budget. If the cache is already stale,
+get_timer() does one opportunistic refresh from the timer feed so the UI can
+self-heal instead of sticking on "desatualizado".
 """
 
 from datetime import datetime, timezone
+import logging
 
 from app.config import get_settings
 from app.database import db
 from app.ingest_gate import collection_start, ingest_enabled
 from app.services.subathon_math import Marathon, parse_dt
+
+logger = logging.getLogger(__name__)
 
 
 def _cached_to_marathon(doc: dict) -> Marathon | None:
@@ -28,6 +32,25 @@ def _cached_to_marathon(doc: dict) -> Marathon | None:
         observed_at=observed,
         rules=dict(doc.get("rules") or {}),
     )
+
+
+async def _refresh_cache_from_feed() -> dict | None:
+    """One-shot feed fetch when cache is stale. Best-effort; never raises."""
+    try:
+        from app.services.subathon_marathon import record_observation
+        from app.services.timer_client import client as timer_client
+
+        feed = await timer_client.get_timer()
+        await record_observation(feed.marathon, source="request_refresh", heartbeat=False)
+        creator = (feed.payload or {}).get("creator_id")
+        if creator:
+            await db.marathon_state.update_one(
+                {"_id": "current"}, {"$set": {"creator_id": creator}}
+            )
+        return await db.marathon_state.find_one({"_id": "current"})
+    except Exception as exc:
+        logger.warning("Opportunistic timer refresh failed: %s", exc)
+        return None
 
 
 async def get_timer() -> dict:
@@ -65,6 +88,18 @@ async def get_timer() -> dict:
             last_success is None
             or (now - last_success).total_seconds() > stale_s
         )
+        if stale:
+            refreshed = await _refresh_cache_from_feed()
+            if refreshed:
+                cached = refreshed
+                marathon = _cached_to_marathon(cached) or marathon
+                last_success = parse_dt(cached.get("last_success_at"))
+                now = datetime.now(timezone.utc)
+                stale = bool(
+                    last_success is None
+                    or (now - last_success).total_seconds() > stale_s
+                )
+
         paused_total = 0
         async for p in db.marathon_pauses.find({}):
             paused_total += int(p.get("seconds") or 0)
@@ -86,7 +121,13 @@ async def get_timer() -> dict:
             "placeholder": False,
         }
 
-    # Placeholder fallback when feed unconfigured or no cache yet.
+    # No cache yet but feed configured — try once so first page load fills state.
+    if settings.is_timer_configured and marathon is None:
+        refreshed = await _refresh_cache_from_feed()
+        if refreshed:
+            return await get_timer()
+
+    # Placeholder fallback when feed unconfigured or still empty.
     remaining = max(0, int(settings.subathon_placeholder_seconds))
     return {
         "mode": "unavailable",

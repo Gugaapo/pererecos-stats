@@ -293,7 +293,7 @@ async def poll_forever(stop: asyncio.Event) -> None:
             )
             changed = key != last_snapshot_key
             if changed or need_heartbeat:
-                result = await record_observation(
+                await record_observation(
                     m, source="poll", heartbeat=need_heartbeat and not changed
                 )
                 if creator:
@@ -308,6 +308,21 @@ async def poll_forever(stop: asyncio.Event) -> None:
                     m.timer_mode(),
                     m.ends_at,
                     m.remaining_at(now),
+                )
+            else:
+                # Still a successful upstream read — keep last_success_at fresh so the
+                # public timer does not flip to stale between heartbeats.
+                await db.marathon_state.update_one(
+                    {"_id": CURRENT_ID},
+                    {
+                        "$set": {
+                            "last_success_at": now,
+                            "fetched_at": now,
+                            "error_count": 0,
+                            **({"creator_id": creator} if creator else {}),
+                        }
+                    },
+                    upsert=True,
                 )
             error_backoff = poll_s
         except TimerFeedError as exc:
