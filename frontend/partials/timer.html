@@ -90,19 +90,68 @@
             </div>
 
             <div class="card" style="margin-top:1rem;">
-              <div class="section-label" data-tip="Cada linha é o total detectado numa janela do coletor (~1 min), não uma doação individual. Várias doações no mesmo minuto aparecem somadas.">Últimos aumentos</div>
+              <div class="section-label" data-tip="Contagem de eventos Twitch recebidos pelo SSE da MeiaUm nas últimas 24h (independente dos aumentos do timer).">Twitch (24h)</div>
+              <div class="tragadores-highlights">
+                <div class="tragadores-highlight-item" data-tip="Novas inscrições (twitch.sub).">
+                  <span class="highlight-label">Subs</span>
+                  <span class="highlight-value" id="timer-tw-subs">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Renovações e upgrades (twitch.resub).">
+                  <span class="highlight-label">Resubs</span>
+                  <span class="highlight-value" id="timer-tw-resubs">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Gifts individuais + subs em pacotes mysterygift.">
+                  <span class="highlight-label">Gifts</span>
+                  <span class="highlight-value" id="timer-tw-gifts">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Total de Bits em cheers (twitch.cheer).">
+                  <span class="highlight-label">Bits</span>
+                  <span class="highlight-value" id="timer-tw-bits">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Quanto do tempo adicionado ao timer veio de subs, Bits ou Pix, correlacionando o SSE da MeiaUm com os aumentos do ends_at. Sem origem = Kick/YouTube/janelas sem evento correspondente.">Origem do tempo</div>
+              <div class="section-note" id="timer-origin-note">Últimas 24h · Kick/YouTube e janelas sem SSE ficam em “Sem origem”.</div>
+              <div id="timer-origin-ratio" class="timer-origin-ratio" aria-label="Distribuição percentual da origem do tempo"></div>
+              <div class="tragadores-highlights" style="margin-top:0.75rem;">
+                <div class="tragadores-highlight-item" data-tip="Tempo de timer atribuído a subs/resubs/gifts Twitch.">
+                  <span class="highlight-label">Subs</span>
+                  <span class="highlight-value" id="timer-origin-subs">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Tempo de timer atribuído a cheers (Bits).">
+                  <span class="highlight-label">Bits</span>
+                  <span class="highlight-value" id="timer-origin-bits">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Tempo de timer atribuído a Pix (Pixie).">
+                  <span class="highlight-label">Pix</span>
+                  <span class="highlight-value" id="timer-origin-pix">—</span>
+                </div>
+                <div class="tragadores-highlight-item" data-tip="Aumentos sem evento SSE correspondente (Kick, YouTube, tip sem match, pacotes mistos).">
+                  <span class="highlight-label">Sem origem</span>
+                  <span class="highlight-value" id="timer-origin-other">—</span>
+                </div>
+              </div>
+              <div class="section-label" style="margin-top:1rem;" data-tip="Últimos aumentos em que o SSE identificou o doador.">Últimos doadores</div>
+              <div id="timer-recent-donors"><div class="empty-state">—</div></div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+              <div class="section-label" data-tip="Cada linha é o total detectado numa janela do coletor (~1 min), não uma doação individual. Várias doações no mesmo minuto aparecem somadas. Fonte = usuário Twitch quando o SSE casa o evento; Pix sem nome no payload; Sem origem = Kick/YouTube/janela sem match.">Últimos aumentos</div>
               <div class="section-note">Cada linha = total na janela do coletor (várias doações no mesmo intervalo saem somadas). Valor em R$ estimado por R$1 → 1 min de timer.</div>
               <div class="timer-increases-wrap">
                 <table class="timer-increases-table" aria-label="Últimos aumentos do timer">
                   <thead>
                     <tr>
                       <th scope="col">Quando (janela)</th>
+                      <th scope="col">Fonte</th>
                       <th scope="col">Doado no intervalo</th>
                       <th scope="col">Impacto no timer</th>
                     </tr>
                   </thead>
                   <tbody id="timer-recent-list">
-                    <tr><td colspan="3" class="empty-state">—</td></tr>
+                    <tr><td colspan="4" class="empty-state">—</td></tr>
                   </tbody>
                 </table>
               </div>

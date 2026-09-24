@@ -1564,8 +1564,14 @@ async function refreshSidebarContext(section) {
         offsetMs = Date.parse(data.server_now) - Date.now();
       }
       if (data.ends_at) {
-        endsAtMs = Date.parse(data.ends_at);
-        remainingFallback = null;
+        const parsed = Date.parse(data.ends_at);
+        if (Number.isFinite(parsed)) {
+          endsAtMs = parsed;
+          remainingFallback = null;
+        } else {
+          endsAtMs = null;
+          remainingFallback = Math.max(0, Number(data.remaining_seconds) || 0);
+        }
       } else {
         endsAtMs = null;
         remainingFallback = Math.max(0, Number(data.remaining_seconds) || 0);

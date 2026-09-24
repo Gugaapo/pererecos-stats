@@ -12,7 +12,7 @@ export async function ensureTimerPartial() {
     timerPartialReady = true;
     return;
   }
-  const res = await fetch(`${BASE_PATH}/static/partials/timer.html`);
+  const res = await fetch(`${BASE_PATH}/static/partials/timer.html?v=20260924ratio`);
   if (!res.ok) throw new Error('timer partial ' + res.status);
   host.innerHTML = await res.text();
   delete host.dataset.partial;
@@ -136,29 +136,55 @@ export function renderTimerRankedList(el, rows, valueFn) {
   });
 }
 
+async function fetchJsonOrNull(path) {
+  try {
+    const res = await fetch(API_BASE + path);
+    if (!res.ok) throw new Error(path + ' ' + res.status);
+    return await res.json();
+  } catch (err) {
+    console.error('Timer fetch failed', path, err);
+    return null;
+  }
+}
+
 export async function fetchTimerSection() {
   // Plain fetch — do NOT use apiUrl() (that helper appends platform/period).
-  const paths = [
-    '/subathon/overview',
-    '/subathon/daily?days=30',
-    '/subathon/hourly',
-    '/subathon/increases?limit=25',
-    '/subathon/timer',
-    '/subathon/insights',
-  ];
-  const results = await Promise.all(
-    paths.map((p) => fetch(API_BASE + p).then((r) => {
-      if (!r.ok) throw new Error(p + ' ' + r.status);
-      return r.json();
-    }))
-  );
+  // Core timer endpoints must succeed; twitch-events is best-effort so a
+  // missing/new route cannot blank the whole Timer tab.
+  const [
+    overview,
+    daily,
+    hourly,
+    increases,
+    timer,
+    insights,
+    twitchEvents,
+    attributionStats,
+    attributionAll,
+  ] = await Promise.all([
+    fetchJsonOrNull('/subathon/overview'),
+    fetchJsonOrNull('/subathon/daily?days=30'),
+    fetchJsonOrNull('/subathon/hourly'),
+    fetchJsonOrNull('/subathon/increases?limit=10'),
+    fetchJsonOrNull('/subathon/timer'),
+    fetchJsonOrNull('/subathon/insights'),
+    fetchJsonOrNull('/subathon/twitch-events?hours=24'),
+    fetchJsonOrNull('/subathon/attribution-stats?hours=24'),
+    fetchJsonOrNull('/subathon/attribution-stats?hours=0'),
+  ]);
+  if (!timer && !overview) {
+    throw new Error('timer core endpoints unavailable');
+  }
   return {
-    overview: results[0],
-    daily: results[1],
-    hourly: results[2],
-    increases: results[3],
-    timer: results[4],
-    insights: results[5],
+    overview: overview || {},
+    daily: daily || [],
+    hourly: hourly || [],
+    increases: increases || { items: [] },
+    timer: timer || {},
+    insights: insights || {},
+    twitchEvents: twitchEvents || {},
+    attributionStats: attributionStats || {},
+    attributionAll: attributionAll || {},
   };
 }
 
@@ -236,13 +262,13 @@ export function renderTimerSection(data) {
   const recentEl = document.getElementById('timer-recent-list');
   if (recentEl) {
     recentEl.textContent = '';
-    const items = (data.increases?.items || []).filter(
-      (it) => it.kind === 'grant' && (it.granted_seconds || 0) > 0
-    );
+    const items = (data.increases?.items || [])
+      .filter((it) => it.kind === 'grant' && (it.granted_seconds || 0) > 0)
+      .slice(0, 10);
     if (!items.length) {
       const tr = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 3;
+      td.colSpan = 4;
       td.className = 'empty-state';
       td.textContent = '—';
       tr.appendChild(td);
@@ -253,25 +279,206 @@ export function renderTimerSection(data) {
         const windowLabel = formatPollWindowLabel(it.at, it.precision_seconds);
         const brl = estimateBrlFromGrantedSeconds(it.granted_seconds) || '—';
         const impact = formatPlusHms(it.granted_seconds);
-        tr.setAttribute(
-          'data-tip',
+        const attr = it.attribution && typeof it.attribution === 'object' ? it.attribution : null;
+        const attrLabel = it.label || (attr && attr.label);
+        const who = it.user_name || (attr && attr.user_name);
+        const fonte = formatIncreaseFonte(it);
+        let tip =
           'Total detectado na janela ' + windowLabel +
-            ' — pode somar várias doações. Estimativa R$1 → 1 min de timer.'
-        );
+          ' — pode somar várias doações. Estimativa R$1 → 1 min de timer.';
+        if (attrLabel || who) {
+          tip +=
+            ' Fonte SSE: ' +
+            (attrLabel || fonte) +
+            (who ? ' · ' + who : '') +
+            '.';
+        } else {
+          tip += ' Sem evento SSE correspondente (Kick/YouTube/janela mista).';
+        }
+        tr.setAttribute('data-tip', tip);
         const tdWhen = document.createElement('td');
         tdWhen.textContent = windowLabel;
+        const tdFonte = document.createElement('td');
+        tdFonte.textContent = fonte;
         const tdBrl = document.createElement('td');
         tdBrl.textContent = brl;
         const tdImpact = document.createElement('td');
         tdImpact.textContent = impact;
         tr.appendChild(tdWhen);
+        tr.appendChild(tdFonte);
         tr.appendChild(tdBrl);
         tr.appendChild(tdImpact);
         recentEl.appendChild(tr);
       });
     }
   }
+
+  const tw = data.twitchEvents || {};
+  const setTw = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val == null ? '—' : String(val);
+  };
+  setTw('timer-tw-subs', tw.subs);
+  setTw('timer-tw-resubs', tw.resubs);
+  const giftTotal =
+    (Number(tw.gifts) || 0) + (Number(tw.mystery_gift_subs) || Number(tw.mystery_gifts) || 0);
+  setTw('timer-tw-gifts', giftTotal);
+  setTw('timer-tw-bits', tw.bits);
+
+  renderOriginStats(data.attributionStats, data.attributionAll);
+  renderRecentDonors(data.attributionStats);
+
   renderInsights(data.insights);
+}
+
+function formatOriginCell(seconds, total) {
+  const s = Math.max(0, Number(seconds) || 0);
+  const t = Math.max(0, Number(total) || 0);
+  const pct = t > 0 ? Math.round((s / t) * 100) : 0;
+  return formatTimerDuration(s) + (t > 0 ? ' (' + pct + '%)' : '');
+}
+
+const ORIGIN_SLICES = [
+  { key: 'subs', label: 'Subs', className: 'ratio-seg-subs' },
+  { key: 'bits', label: 'Bits', className: 'ratio-seg-bits' },
+  { key: 'pix', label: 'Pix', className: 'ratio-seg-pix' },
+  { key: 'other', label: 'Sem origem', className: 'ratio-seg-other' },
+];
+
+const SUB_CLASS_CODES = new Set([
+  'prime',
+  'tier1',
+  'tier2',
+  'tier3',
+  'resub',
+  'gift',
+  'mystery_gift',
+]);
+
+/** Human label for increase Fonte column (source, not only username). */
+export function formatIncreaseFonte(it) {
+  const attr = it && it.attribution && typeof it.attribution === 'object' ? it.attribution : null;
+  const who = (it && it.user_name) || (attr && attr.user_name) || null;
+  const label = (it && it.label) || (attr && attr.label) || null;
+  const code = attr && attr.attributed ? attr.class_code : null;
+
+  let source = null;
+  if (code === 'pix' || (label && /^Pix\b/i.test(label))) source = label || 'Pix';
+  else if (code === 'bits') source = label || 'Bits';
+  else if (code === 'bundle') source = label || 'Pacote';
+  else if (code && SUB_CLASS_CODES.has(code)) source = label || 'Sub';
+  else if (attr && attr.attributed) source = label || code || 'SSE';
+  else source = null;
+
+  if (who && source) return who + ' · ' + source;
+  if (who) return who;
+  if (source) return source;
+  return 'Sem origem';
+}
+
+function renderOriginRatio(byOrigin, total) {
+  const host = document.getElementById('timer-origin-ratio');
+  if (!host) return;
+  host.textContent = '';
+  if (total <= 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'Sem aumentos nas últimas 24h';
+    host.appendChild(empty);
+    return;
+  }
+  const parts = ORIGIN_SLICES.map((s) => {
+    const secs = Math.max(0, Number((byOrigin[s.key] || {}).seconds) || 0);
+    return {
+      label: s.label,
+      value: secs,
+      display: formatTimerDuration(secs),
+      className: s.className,
+    };
+  }).filter((p) => p.value > 0);
+  if (!parts.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'Sem aumentos nas últimas 24h';
+    host.appendChild(empty);
+    return;
+  }
+  host.appendChild(renderRatioBar(parts));
+}
+
+function renderOriginStats(stats24, statsAll) {
+  const s24 = stats24 || {};
+  const by = s24.by_origin || {};
+  const total = Number(s24.total_granted_seconds) || 0;
+  const set = (id, key) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const bucket = by[key] || {};
+    el.textContent = formatOriginCell(bucket.seconds, total);
+  };
+  set('timer-origin-subs', 'subs');
+  set('timer-origin-bits', 'bits');
+  set('timer-origin-pix', 'pix');
+  set('timer-origin-other', 'other');
+
+  renderOriginRatio(by, total);
+
+  const note = document.getElementById('timer-origin-note');
+  if (note) {
+    const all = statsAll || {};
+    const allBy = all.by_origin || {};
+    const allTotal = Number(all.total_granted_seconds) || 0;
+    const attr = Number(s24.attributed_seconds) || 0;
+    const parts = [
+      'Últimas 24h: ' + formatTimerDuration(total) + ' adicionados' +
+        (total ? ' · ' + Math.round((attr / Math.max(total, 1)) * 100) + '% com origem SSE' : ''),
+    ];
+    if (allTotal > 0) {
+      parts.push(
+        'Desde o início: Subs ' +
+          formatTimerDuration((allBy.subs || {}).seconds || 0) +
+          ' · Bits ' +
+          formatTimerDuration((allBy.bits || {}).seconds || 0) +
+          ' · Pix ' +
+          formatTimerDuration((allBy.pix || {}).seconds || 0) +
+          ' · Sem origem ' +
+          formatTimerDuration((allBy.other || {}).seconds || 0)
+      );
+    }
+    note.textContent = parts.join(' · ');
+  }
+}
+
+function renderRecentDonors(stats) {
+  const el = document.getElementById('timer-recent-donors');
+  if (!el) return;
+  el.textContent = '';
+  const donors = (stats && stats.recent_donors) || [];
+  if (!donors.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'Ainda sem doadores identificados via SSE.';
+    el.appendChild(empty);
+    return;
+  }
+  donors.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'active-chatter';
+    const rank = document.createElement('span');
+    rank.className = 'rank';
+    rank.textContent = String(i + 1);
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent =
+      (d.user_name || '—') + (d.label ? ' · ' + d.label : '');
+    const val = document.createElement('span');
+    val.className = 'active-chatter-count';
+    val.textContent = formatPlusHms(d.granted_seconds);
+    row.appendChild(rank);
+    row.appendChild(name);
+    row.appendChild(val);
+    el.appendChild(row);
+  });
 }
 
 const PACE_ARROW = { up: '↑', down: '↓', flat: '→', unknown: '—' };

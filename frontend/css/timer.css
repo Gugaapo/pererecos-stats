@@ -725,3 +725,27 @@ body {
   gap: 0.35em;
   white-space: nowrap;
 }
+
+.timer-origin-ratio {
+  margin-top: 0.75rem;
+}
+
+.ratio-seg-subs,
+.ratio-dot.ratio-seg-subs {
+  background: var(--accent-lime);
+}
+
+.ratio-seg-bits,
+.ratio-dot.ratio-seg-bits {
+  background: var(--accent-green);
+}
+
+.ratio-seg-pix,
+.ratio-dot.ratio-seg-pix {
+  background: #48c9b0;
+}
+
+.ratio-seg-other,
+.ratio-dot.ratio-seg-other {
+  background: #5a6b5e;
+}
