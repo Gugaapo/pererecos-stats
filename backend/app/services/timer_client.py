@@ -20,6 +20,8 @@ from app.services.subathon_math import Marathon, parse_dt
 
 logger = logging.getLogger(__name__)
 
+USER_AGENT = "pererecos-stats-subathon/1.0 (+https://tossemideia.cloud/pererecos-stats-subathon)"
+
 
 class TimerFeedError(Exception):
     def __init__(self, status: int, detail: str, retry_after: int | None = None):
@@ -49,7 +51,10 @@ class TimerClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(10.0, connect=5.0),
-                headers={"Accept": "application/json"},
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": USER_AGENT,
+                },
                 limits=httpx.Limits(max_keepalive_connections=4, max_connections=8),
             )
         return self._client
@@ -79,6 +84,8 @@ class TimerClient:
                 payload = resp.json()
                 fetched_at = datetime.now(timezone.utc)
                 observed = parse_dt(payload.get("observed_at")) or fetched_at
+                rules_raw = payload.get("rules")
+                rules = rules_raw if isinstance(rules_raw, dict) else {}
                 marathon = Marathon(
                     state=str(payload.get("state") or "unavailable"),
                     direction=str(payload.get("direction") or "decrease"),
@@ -87,7 +94,7 @@ class TimerClient:
                     ends_at=parse_dt(payload.get("ends_at")),
                     paused_at=parse_dt(payload.get("paused_at")),
                     observed_at=observed,
-                    rules={},  # rules come from Pixie when configured; not on this feed
+                    rules=rules,
                 )
                 feed_seconds_raw = payload.get("seconds")
                 try:

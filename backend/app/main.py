@@ -203,8 +203,9 @@ async def lifespan(app: FastAPI):
 
     marathon_task = None
     marathon_stop = asyncio.Event()
+    stream_task = None
     if settings.is_timer_configured:
-        from app.services.subathon_marathon import poll_forever
+        from app.services.subathon_marathon import poll_forever, stream_forever
         from app.services.timer_client import client as timer_client
 
         marathon_task = asyncio.create_task(poll_forever(marathon_stop))
@@ -220,27 +221,60 @@ async def lifespan(app: FastAPI):
 
         marathon_task.add_done_callback(_marathon_done)
         print("Marathon timer poller started (vinnytasso /timer)")
+
+        if settings.timer_stream_enabled and (settings.timer_stream_url or "").strip():
+            stream_task = asyncio.create_task(stream_forever(marathon_stop))
+            app.state.stream_task = stream_task
+
+            def _stream_done(task: asyncio.Task):
+                if task.cancelled():
+                    return
+                exc = task.exception()
+                if exc:
+                    logger.error("Marathon SSE crashed", exc_info=exc)
+
+            stream_task.add_done_callback(_stream_done)
+            print("Marathon timer SSE started (vinnytasso /timer/stream)")
+
+            async def _refresh_attribution():
+                try:
+                    from app.services.timer_attribution import refresh_feed_event_expectations
+                    n = await refresh_feed_event_expectations(rematch_hours=48)
+                    logger.info("Attribution refresh done updated_events=%s", n)
+                except Exception:
+                    logger.exception("Attribution refresh failed")
+
+            asyncio.create_task(_refresh_attribution())
     else:
         app.state.marathon_task = None
         app.state.marathon_stop = None
+        app.state.stream_task = None
         print("Marathon timer poller disabled (TIMER_FEED_ENABLED/url not set)")
 
     yield
 
-    if marathon_task:
+    if marathon_task or stream_task:
         marathon_stop.set()
-        marathon_task.cancel()
-        try:
-            await marathon_task
-        except asyncio.CancelledError:
-            pass
-        except Exception as exc:
-            logger.warning("Marathon poller cleanup error (non-fatal): %s", exc)
+        for t in (marathon_task, stream_task):
+            if not t:
+                continue
+            t.cancel()
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                logger.warning("Marathon task cleanup error (non-fatal): %s", exc)
         try:
             from app.services.timer_client import client as timer_client
             await timer_client.aclose()
         except Exception as exc:
             logger.warning("Timer client close error (non-fatal): %s", exc)
+        try:
+            from app.services.timer_sse_client import stream_client
+            await stream_client.aclose()
+        except Exception as exc:
+            logger.warning("Timer SSE client close error (non-fatal): %s", exc)
         try:
             from app.services.pixie_client import client as pixie_client
             await pixie_client.aclose()

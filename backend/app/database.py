@@ -172,6 +172,14 @@ class DatabaseManager:
         )
         await self.db.marathon_increases.create_index([("at", -1)])
         await self.db.marathon_increases.create_index([("brt_date", 1)])
+        await self.db.feed_events.create_index([("key", 1)], unique=True)
+        await self.db.feed_events.create_index([("at", -1)])
+        await self.db.feed_events.create_index([("type", 1), ("at", -1)])
+        await self.db.feed_events.create_index(
+            [("received_at", 1)],
+            expireAfterSeconds=14 * 24 * 3600,
+            name="feed_events_ttl_14d",
+        )
         await self.db.marathon_pauses.create_index([("start_at", -1)])
         await self.db.marathon_daily.create_index([("date", 1)], unique=True)
         await self.db.marathon_txn.create_index([("txn_id", 1)], unique=True)
@@ -255,6 +263,10 @@ class DatabaseManager:
     @property
     def marathon_increases(self):
         return self.db.marathon_increases
+
+    @property
+    def feed_events(self):
+        return self.db.feed_events
 
     @property
     def marathon_pauses(self):

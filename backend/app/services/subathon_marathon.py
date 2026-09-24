@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from pymongo.errors import DuplicateKeyError
@@ -209,7 +209,7 @@ async def record_observation(
         )
 
     if decision["kind"] in ("grant", "pause_credit", "adjustment"):
-        await db.marathon_increases.insert_one(
+        insert_result = await db.marathon_increases.insert_one(
             {
                 "at": now,
                 "granted_seconds": int(decision["granted_seconds"]),
@@ -223,6 +223,18 @@ async def record_observation(
                 "status": status,
             }
         )
+        if decision["kind"] == "grant" and int(decision["granted_seconds"]) > 0:
+            try:
+                from app.services import timer_attribution as attr
+
+                await attr.attribute_increase(
+                    increase_at=now if now.tzinfo else now.replace(tzinfo=timezone.utc),
+                    granted_seconds=int(decision["granted_seconds"]),
+                    precision_seconds=precision_seconds,
+                    increase_id=insert_result.inserted_id,
+                )
+            except Exception:
+                logger.exception("Increase attribution failed")
 
     # Pause intervals: open on paused rise, close on fall
     if prev is not None:
@@ -464,6 +476,208 @@ async def poll_forever(stop: asyncio.Event) -> None:
             continue
 
     logger.info("Marathon poller stopped")
+
+
+async def _apply_timer_updated_cache(payload: dict[str, Any]) -> None:
+    """Refresh Agora display from SSE without touching poll-owned ends_at.
+
+    Writing ends_at here used to erase poller deltas (SSE moved ends_at first,
+    then poll saw raw_delta=0 and never inserted marathon_increases).
+    """
+    current = payload.get("current") if isinstance(payload.get("current"), dict) else {}
+    if not current:
+        return
+    now = datetime.now(timezone.utc)
+    ends_at = parse_dt(current.get("ends_at"))
+    observed = parse_dt(payload.get("observed_at")) or now
+    cached = await load_cached() or {}
+    if ends_at is None:
+        ends_at = parse_dt(cached.get("display_ends_at") or cached.get("ends_at"))
+        if ends_at is None:
+            raw = cached.get("display_ends_at") or cached.get("ends_at")
+            if isinstance(raw, datetime):
+                ends_at = raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+    update: dict[str, Any] = {
+        "display_state": str(current.get("state") or cached.get("state") or "unavailable"),
+        "display_direction": str(
+            current.get("direction") or cached.get("direction") or "increase"
+        ),
+        "display_locked": (
+            bool(current.get("locked")) if "locked" in current else bool(cached.get("locked"))
+        ),
+        "display_paused": (
+            bool(current.get("paused")) if "paused" in current else bool(cached.get("paused"))
+        ),
+        "last_sse_at": now,
+        "last_sse_observed_at": observed,
+        "error_count": 0,
+    }
+    if ends_at is not None:
+        update["display_ends_at"] = ends_at
+    if current.get("seconds") is not None:
+        update["display_feed_seconds"] = current.get("seconds")
+    if current.get("value") is not None:
+        update["display_feed_value"] = current.get("value")
+    # Keep header "fresh" without claiming a poll success that advanced ends_at.
+    update["fetched_at"] = now
+    await db.marathon_state.update_one({"_id": CURRENT_ID}, {"$set": update}, upsert=True)
+
+    # Recover grants when SSE saw an ends_at jump the poller never recorded.
+    prev = payload.get("previous") if isinstance(payload.get("previous"), dict) else {}
+    prev_ends = parse_dt(prev.get("ends_at"))
+    if ends_at is not None and prev_ends is not None:
+        raw = int((ends_at - prev_ends).total_seconds())
+        if raw > 0:
+            await _ensure_sse_grant(
+                at=observed,
+                granted_seconds=raw,
+                ends_at_before=prev_ends,
+                ends_at_after=ends_at,
+            )
+
+
+def _mongo_dt(dt: datetime) -> datetime:
+    """Store/compare as naive UTC to match poller marathon_increases docs."""
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+async def _ensure_sse_grant(
+    *,
+    at: datetime,
+    granted_seconds: int,
+    ends_at_before: datetime,
+    ends_at_after: datetime,
+) -> bool:
+    """Insert a grant from timer.updated if no nearby poll grant exists."""
+    if granted_seconds <= 0:
+        return False
+    at_m = _mongo_dt(at)
+    before_m = _mongo_dt(ends_at_before)
+    after_m = _mongo_dt(ends_at_after)
+    window = timedelta(seconds=max(90, get_settings().attribution_window_seconds))
+    existing = await db.marathon_increases.find_one(
+        {
+            "kind": "grant",
+            "granted_seconds": granted_seconds,
+            "at": {"$gte": at_m - window, "$lte": at_m + window},
+        }
+    )
+    if existing:
+        return False
+    # Also skip if any grant already covers this ends_at_after.
+    by_ends = await db.marathon_increases.find_one(
+        {"kind": "grant", "ends_at_after": after_m}
+    )
+    if by_ends:
+        return False
+    doc = {
+        "at": at_m,
+        "granted_seconds": int(granted_seconds),
+        "raw_delta_seconds": int(granted_seconds),
+        "ends_at_before": before_m,
+        "ends_at_after": after_m,
+        "kind": "grant",
+        "source": "sse",
+        "precision_seconds": 1,
+        "brt_date": brt_date(at if at.tzinfo else at.replace(tzinfo=timezone.utc)),
+        "status": None,
+    }
+    result = await db.marathon_increases.insert_one(doc)
+    logger.info(
+        "SSE recovered grant +%ss at %s (poll had missed ends_at jump)",
+        granted_seconds,
+        at_m.isoformat(),
+    )
+    try:
+        from app.services import timer_attribution as attr
+
+        await attr.attribute_increase(
+            increase_at=at if at.tzinfo else at.replace(tzinfo=timezone.utc),
+            granted_seconds=int(granted_seconds),
+            precision_seconds=1,
+            increase_id=result.inserted_id,
+        )
+    except Exception:
+        logger.exception("SSE grant attribution failed")
+    # Align poll-owned ends_at so the next poll does not double-count.
+    await db.marathon_state.update_one(
+        {"_id": CURRENT_ID},
+        {
+            "$set": {
+                "ends_at": after_m,
+                "observed_at": at_m,
+                "last_success_at": datetime.now(timezone.utc),
+            }
+        },
+        upsert=True,
+    )
+    return True
+
+
+async def recover_missed_sse_grants(*, lookback_hours: float = 72.0) -> int:
+    """Replay stored timer.updated jumps into marathon_increases when poll missed them."""
+    since = datetime.now(timezone.utc) - timedelta(hours=max(0.1, lookback_hours))
+    since_m = _mongo_dt(since)
+    recovered = 0
+    cursor = db.feed_events.find(
+        {"type": "timer.updated", "at": {"$gte": since_m}}
+    ).sort("at", 1)
+    async for ev in cursor:
+        payload = ev.get("payload") if isinstance(ev.get("payload"), dict) else {}
+        current = payload.get("current") if isinstance(payload.get("current"), dict) else {}
+        prev = payload.get("previous") if isinstance(payload.get("previous"), dict) else {}
+        ends_at = parse_dt(current.get("ends_at"))
+        prev_ends = parse_dt(prev.get("ends_at"))
+        if ends_at is None or prev_ends is None:
+            continue
+        raw = int((ends_at - prev_ends).total_seconds())
+        if raw <= 0:
+            continue
+        observed = parse_dt(payload.get("observed_at")) or parse_dt(ev.get("at"))
+        if observed is None:
+            continue
+        if await _ensure_sse_grant(
+            at=observed,
+            granted_seconds=raw,
+            ends_at_before=prev_ends,
+            ends_at_after=ends_at,
+        ):
+            recovered += 1
+    if recovered:
+        logger.info("Recovered %s missed SSE grants from feed_events", recovered)
+    return recovered
+
+
+async def handle_stream_event(
+    event_type: str,
+    payload: dict[str, Any] | None,
+    sse_id: str | None,
+) -> None:
+    from app.services import timer_attribution as attr
+
+    if event_type == "handshake":
+        await db.marathon_state.update_one(
+            {"_id": CURRENT_ID},
+            {"$set": {"last_sse_handshake_at": datetime.now(timezone.utc), "sse_connected": True}},
+            upsert=True,
+        )
+        return
+    if event_type == "timer.updated" and isinstance(payload, dict):
+        await _apply_timer_updated_cache(payload)
+        await attr.store_feed_event(event_type, payload, sse_id=sse_id)
+        return
+    if event_type.startswith(("twitch.", "pixie.", "timer.")):
+        await attr.store_feed_event(event_type, payload, sse_id=sse_id)
+        return
+    logger.debug("Ignoring SSE event type=%s", event_type)
+
+
+async def stream_forever(stop: asyncio.Event) -> None:
+    from app.services.timer_sse_client import stream_client
+
+    await stream_client.run_forever(stop, handle_stream_event)
 
 
 async def rebuild_daily(days: int = 400) -> int:

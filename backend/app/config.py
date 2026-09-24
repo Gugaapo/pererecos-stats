@@ -43,9 +43,12 @@ class Settings(BaseSettings):
     # Public MeiaUm timer feed (vinnytasso) — primary ends_at/state source
     timer_feed_enabled: bool = True
     timer_feed_url: str = "https://meiaum.vinnytasso.com.br/api/v1/timer"
+    timer_stream_url: str = "https://meiaum.vinnytasso.com.br/api/v1/timer/stream"
+    timer_stream_enabled: bool = True
     timer_poll_seconds: int = 60
     timer_snapshot_heartbeat_seconds: int = 300
     timer_stale_seconds: int = 180
+    attribution_window_seconds: int = 120
 
     # Pixie.gg — optional money webhooks + marathon fallback
     pixie_enabled: bool = True

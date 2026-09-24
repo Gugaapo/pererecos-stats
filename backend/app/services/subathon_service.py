@@ -90,33 +90,54 @@ async def get_timer() -> dict:
 
     if settings.is_timer_configured and marathon is not None:
         last_success = parse_dt(cached.get("last_success_at")) if cached else None
+        last_sse = parse_dt(cached.get("last_sse_at")) if cached else None
         stale_s = int(settings.timer_stale_seconds)
-        stale = bool(
-            last_success is None
-            or (now - last_success).total_seconds() > stale_s
-        )
+
+        def _is_stale(success, sse, anchor) -> bool:
+            freshest = success
+            if sse is not None and (freshest is None or sse > freshest):
+                freshest = sse
+            return freshest is None or (anchor - freshest).total_seconds() > stale_s
+
+        stale = _is_stale(last_success, last_sse, now)
         if stale:
             refreshed = await _refresh_cache_from_feed()
             if refreshed:
                 cached = refreshed
                 marathon = _cached_to_marathon(cached) or marathon
                 last_success = parse_dt(cached.get("last_success_at"))
+                last_sse = parse_dt(cached.get("last_sse_at"))
                 now = datetime.now(timezone.utc)
-                stale = bool(
-                    last_success is None
-                    or (now - last_success).total_seconds() > stale_s
-                )
+                stale = _is_stale(last_success, last_sse, now)
 
         paused_total = 0
         async for p in db.marathon_pauses.find({}):
             paused_total += int(p.get("seconds") or 0)
 
+        # Prefer fresher SSE ends_at for Agora; poll-owned ends_at still drives grants.
+        display_ends = parse_dt(cached.get("display_ends_at")) if cached else None
+        use_display = (
+            display_ends is not None
+            and last_sse is not None
+            and (now - last_sse).total_seconds() <= stale_s
+        )
+        ends_for_ui = display_ends if use_display else marathon.ends_at
+        if ends_for_ui is not None:
+            ends = (
+                ends_for_ui
+                if ends_for_ui.tzinfo
+                else ends_for_ui.replace(tzinfo=timezone.utc)
+            )
+            remaining = max(0, int((ends - now).total_seconds()))
+        else:
+            remaining = marathon.remaining_at(now)
+
         return {
             "mode": marathon.timer_mode(),
             "state": marathon.state,
             "direction": marathon.direction,
-            "remaining_seconds": marathon.remaining_at(now),
-            "ends_at": marathon.ends_at,
+            "remaining_seconds": remaining,
+            "ends_at": ends_for_ui,
             "paused_at": marathon.paused_at,
             "paused_total_seconds": paused_total,
             "locked": marathon.locked,
