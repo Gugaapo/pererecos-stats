@@ -145,6 +145,7 @@ async def recent_increases(limit: int, offset: int) -> dict:
         .limit(limit)
     )
     async for doc in cursor:
+        attr = doc.get("attribution") if isinstance(doc.get("attribution"), dict) else {}
         items.append(
             {
                 "at": doc.get("at"),
@@ -154,6 +155,9 @@ async def recent_increases(limit: int, offset: int) -> dict:
                 "source": doc.get("source"),
                 "precision_seconds": int(doc.get("precision_seconds") or 0),
                 "brt_date": doc.get("brt_date"),
+                "attribution": attr or None,
+                "user_name": attr.get("user_name") if attr else None,
+                "label": attr.get("label") if attr else None,
             }
         )
     return {"total": total, "items": items}
@@ -241,6 +245,18 @@ async def rules_snapshot() -> dict:
                 "human": humanize_seconds(int(bit["seconds"])),
             }
         )
+    kick = (rules.get("kick") or {}).get("sub") or {}
+    if kick.get("seconds"):
+        s = int(kick["seconds"])
+        table.append({"label": "Kick Sub", "seconds": s, "human": humanize_seconds(s)})
+    yt = rules.get("youtube") or {}
+    for key, label in (("member", "YouTube membro"), ("superchat", "YouTube Super Chat")):
+        item = yt.get(key) or {}
+        if item.get("seconds"):
+            s = int(item["seconds"])
+            each = item.get("each")
+            row_label = label if each is None else f"{label} (each {each})"
+            table.append({"label": row_label, "seconds": s, "human": humanize_seconds(s)})
     return {"rules": rules, "conversion_table": table}
 
 

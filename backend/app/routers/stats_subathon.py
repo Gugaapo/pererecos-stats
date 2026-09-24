@@ -33,6 +33,7 @@ from app.services.subathon_stats import (
     recent_increases,
     rules_snapshot,
 )
+from app.services.timer_attribution import attribution_stats, twitch_event_counters
 from app.services.subathon_webhook import SignatureError, verify
 from .stats_common import PLATFORM_PATTERN, add_api_version_headers
 
@@ -115,6 +116,30 @@ async def subathon_contributions(request: Request, response: Response):
 async def subathon_rules(request: Request, response: Response):
     add_api_version_headers(response)
     return await rules_snapshot()
+
+
+@router.get("/subathon/twitch-events")
+@limiter.limit("60/minute")
+async def subathon_twitch_events(
+    request: Request,
+    response: Response,
+    hours: int = Query(24, ge=1, le=168),
+):
+    """SSE Twitch event counters (subs/gifts/bits) over the last N hours."""
+    add_api_version_headers(response)
+    return await twitch_event_counters(hours)
+
+
+@router.get("/subathon/attribution-stats")
+@limiter.limit("60/minute")
+async def subathon_attribution_stats(
+    request: Request,
+    response: Response,
+    hours: int = Query(24, ge=0, le=8760),
+):
+    """Timer seconds by origin (subs/bits/pix/other). hours=0 means since genesis."""
+    add_api_version_headers(response)
+    return await attribution_stats(hours=hours)
 
 
 @router.get("/subathon/diagnostics", response_model=SubathonDiagnosticsResponse)
